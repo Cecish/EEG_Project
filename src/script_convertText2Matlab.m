@@ -15,7 +15,7 @@
 % 5 variables are created in Matlab:
 % - Channels names
 % - Sampling rate (frequency)
-% - Time
+% - Time (s)
 % - signals values (expressed in microVolts)
 % - outcome (0: targeted hand closed, 1: Targeted hand opened, -1 : none)
 function convertText2Matlab(inputTextFile, outputMatlabFile, training,...
