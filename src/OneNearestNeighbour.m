@@ -18,22 +18,17 @@ function accuracy = OneNearestNeighbour(matrix_min_max, height, width)
 end
 
 function closest_neighbour = closestNeighbour(index_record, matrix, height, width)
-    new = 0;
+    min_distance = Inf;
     other_distance = 0.0;
     closest_neighbour = [];
     
-    for i = (1:width)
+    for i = (1:height)
 
         if ~(isequal(i, index_record))
 
             for j = (1:width-1) %Don't consider the target class!
                 other_distance = other_distance + ( (matrix(index_record, j)...
                     - matrix(i, j))^2);
-            end
-
-            if isequal(new, 0)
-                min_distance = other_distance + 1;
-                new = 1;
             end
 
             %Update best distance && corresponding record
