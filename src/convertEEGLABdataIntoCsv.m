@@ -26,6 +26,8 @@ function alleegToCsv(nb_dataset, alleeg, hand)
     
     %Save current dataset into a csv file
     dlmwrite('dataseXY1.csv', [final_mat_X ex_events_Y], 'delimiter', ';');
+    % Save X and Y to matlab variables
+    save(data_events, 'final_mat_X', 'ex_events_Y');
 end
 
 % Transform 3D matrix into 2D matrix (trials are marged)
