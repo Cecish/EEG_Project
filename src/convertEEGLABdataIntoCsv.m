@@ -9,8 +9,6 @@
 %   - hand: 'r'/'l': glove put on the right/left hand
 function alleegToCsv(nb_dataset, alleeg, hand)
 
-    format long;
-
     % If the index specified as argument -> error
     if ((nb_dataset > length(alleeg)) || (nb_dataset < 1))
        error('Wrong dataset number: %d', nb_dataset);
@@ -27,7 +25,7 @@ function alleegToCsv(nb_dataset, alleeg, hand)
     %Save current dataset into a csv file
     dlmwrite('dataseXY1.csv', [final_mat_X ex_events_Y], 'delimiter', ';');
     % Save X and Y to matlab variables
-    save(data_events, 'final_mat_X', 'ex_events_Y');
+    save('data_events', 'final_mat_X', 'ex_events_Y');
 end
 
 % Transform 3D matrix into 2D matrix (trials are marged)
