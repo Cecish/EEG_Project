@@ -20,12 +20,14 @@ function alleegToCsv(nb_dataset, alleeg, hand)
     final_mat_X = threeD2twoD(export_3Ddata, alleeg(nb_dataset).trials);
     
     %Build target field
-    ex_events_Y = buildTargetField(alleeg(nb_dataset), hand, length(final_mat_X));
+    [ex_events, ex_events_Y] = buildTargetField(alleeg(nb_dataset), hand, length(final_mat_X));
     
     %Save current dataset into a csv file
     dlmwrite('dataseXY1.csv', [final_mat_X ex_events_Y], 'delimiter', ';');
-    % Save X and Y to matlab variables
-    save('data_events', 'final_mat_X', 'ex_events_Y');
+    %dlmwrite('enormetest.txt', [final_mat_X ex_events_Y], 'delimiter', ',');
+    
+    % Save useful information into matlab variables
+    save('data_events', 'final_mat_X', 'ex_events_Y', 'ex_events');
 end
 
 % Transform 3D matrix into 2D matrix (trials are marged)
@@ -47,7 +49,7 @@ end
 %   - eeg: 2D matrix storing the EEG records
 %   - hand: glove worn on the right ('r') or left ('l') hand
 % Return events associated to each records (in array)
-function ex_events_Y = buildTargetField(eeg, hand, length_mat)
+function [ex_events, ex_events_Y] = buildTargetField(eeg, hand, length_mat)
     switch hand
         case 'r'
             ex_events = extract_events(eeg, 'S770');

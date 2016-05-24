@@ -7,27 +7,32 @@
 %   - tot_trials: number of trials when acquiring the data
 %   - k: number of neighbours to consider
 % Retun : accuracy score
-function accuracy = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
+function [predictions, accuracy, observed] = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
 
     % #### 1: Min-Max normalisation
-    width = length(final_mat_X(1, :)); %14
-    height = length(final_mat_X);   %3280
+    width = size(final_mat_X, 2); %14, 24
+    height = size(final_mat_X, 1);   %3280, 560
     minmax_X = MinMaxNorm(final_mat_X, height, width);
-    
+ 
     % #### 2: Randomly shuffle trials in final_mat_X and ex_events_Y
     [X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
     
     % #### 3: Split data into test train/train dataset
+    %[training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
+    %    minmax_X, ex_events_Y, nb_trials, tot_trials);
     [training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
-        minmax_X, ex_events_Y, nb_trials, tot_trials);
+        X, Y, nb_trials, tot_trials);
+
+%    dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
     
     % #### 4: Apply kNN on test set with train set as reference
-    accuracy = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y);
+    [predictions, accuracy, observed] = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y);
     disp(['Accuracy with ', num2str(k), '-NN = ', num2str(accuracy), '%']);
     
     % Proportion
-    zero_y = sum(ex_events_Y ~= 0)/height*100;
-    disp(['1 = ', num2str(zero_y), '% and 0 = ', num2str(100-zero_y), '%']);
+    %zero_y = sum(ex_events_Y ~= 0)/height*100;
+    zero_y = sum(testing_Y ~= 0)/(tot_trials - nb_trials)*100;
+    %disp(['1 = ', num2str(zero_y), '% and 0 = ', num2str(100-zero_y), '%']);
 end
 
 % Min max normalisation of a 2D matrix
@@ -67,7 +72,7 @@ function minMax_arrays = findMinMax(dataset, height, width)
             end
         end
         
-        disp(['Minimum of column', num2str(j), ' = ', num2str(min)]);
+        %disp(['Minimum of column', num2str(j), ' = ', num2str(min)]);
         minMax_arrays(1, j) = min;
     end
 
@@ -80,7 +85,7 @@ function minMax_arrays = findMinMax(dataset, height, width)
             end
         end
         
-        disp(['Maximum of column', num2str(i), ' = ', num2str(max)]);
+        %disp(['Maximum of column', num2str(i), ' = ', num2str(max)]);
         minMax_arrays(2, i) = max;
     end
 end
@@ -123,7 +128,7 @@ function [X, Y] = updateShuffle(mat_X, events, tot_trials, shuffled_trials)
     
     while ~isequal(my_length, tot_trials)
         pos_i = ((shuffled_trials(my_length+1)-1) * nb_records_per_trial) + 1;
-       
+        
         temp = mat_X((pos_i : pos_i + nb_records_per_trial - 1), :);
         X = vertcat(X, temp);
         
@@ -187,7 +192,7 @@ end
 %   - training_Y: events associated to the training data
 %   - testing_Y: events associated to the testing data
 % Return: the accuracy score
-function accuracy = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y)
+function [predictions, accuracy, testing_Y] = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y)
     temp = 0.0;
         
     for i = (1: size(testing_dataset, 1))
@@ -207,6 +212,8 @@ function accuracy = aux_knn(training_dataset, testing_dataset, k, training_Y, te
         else
             state = 0.0;
         end
+        
+        predictions(i) = state;
         
         %If guess is correct, update the accuracy
         if isequal(state, testing_Y(i))
