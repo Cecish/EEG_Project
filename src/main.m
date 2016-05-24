@@ -17,7 +17,8 @@ wavelet = 'sym1'; %For the discrete wavelet wavelet transform
 % ############################
 
 %Random seed
-reset(RandStream.getDefaultStream,sum(100*clock)); 
+%reset(RandStream.getDefaultStream,sum(100*clock)); 
+rand('state',sum(100*clock));
 
 % EEGLAB (include loading, preprocessing and extraction the EEG data)
 alleeg = eeglab_script(path_data_file, name_data_file, name_dataset, ...

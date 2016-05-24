@@ -15,13 +15,13 @@ function [predictions, accuracy, observed] = kNN( final_mat_X, ex_events_Y, nb_t
     minmax_X = MinMaxNorm(final_mat_X, height, width);
  
     % #### 2: Randomly shuffle trials in final_mat_X and ex_events_Y
-    [X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
+    %[X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
     
     % #### 3: Split data into test train/train dataset
-    %[training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
-    %    minmax_X, ex_events_Y, nb_trials, tot_trials);
     [training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
-        X, Y, nb_trials, tot_trials);
+        minmax_X, ex_events_Y, nb_trials, tot_trials);
+    %[training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
+    %    X, Y, nb_trials, tot_trials);
 
 %    dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
     

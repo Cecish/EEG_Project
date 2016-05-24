@@ -177,12 +177,12 @@ function row = buildRowFeatures(level, cD, cA)
     end
     
     %Features associated to the approximation coeffients
-    rms(level) = rootMeanSquare(a4);
-    mav(level) = meanAbsoluteValue(a4);
-    ieeg(level) = integratedEEG(a4);
-    ssi(level) = simpleSquareIntegral(a4);
-    var(level) = varianceEEG(a4);
-    aac(level) = averageAmplitudeChange(a4);
+    rms(level) = rootMeanSquare(cA);
+    mav(level) = meanAbsoluteValue(cA);
+    ieeg(level) = integratedEEG(cA);
+    ssi(level) = simpleSquareIntegral(cA);
+    var(level) = varianceEEG(cA);
+    aac(level) = averageAmplitudeChange(cA);
     
     row = [rms mav ieeg ssi var aac];
 end

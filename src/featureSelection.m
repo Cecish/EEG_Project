@@ -17,12 +17,13 @@ function res = featureSelection( mat, pop_size, nb_features, ...
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Evaluate the fitness of each chromosome in the population
-        fitness_array = evalPop(pop, pop_size, nb_features);
+        fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
+            nb_trials_training, nb_trials, k);
 
         % Sort the population by fitness and record the best fitness of the generation
-        [pop, fitness_evolution] = sortRecord(pop, fitness_array, ...
-            fitness_evolution, best_fitness);
-
+        [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, fitness_array, ...
+            fitness_evolution, best_fitness, best_features);
+        %size(best_features)
         % ####2: Create a new population
         pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
             fitness_array, nb_features);
@@ -59,7 +60,7 @@ end
 % Return: sub matrix of mat
 function new_mat = buildSubMat(mat, individual, length_id)
     count = 1;
-    
+
     for i = (1 : length_id)
         if isequal(individual(i), 1) %Features taken for new_mat
             new_mat(:, count) = mat(:, i);
@@ -202,12 +203,19 @@ end
 
 % Evaluate the current population
 % Params: 
+%   - mat: matrix of features
 %   - pop: population of chromosomes
 %   - pop_size: size of the population
 %   - nb_features: number of features for each chromosomes
+%   - events: events associated to each row of mat
+%   - nb_trials_training: number of trials that constitute the "training" 
+%       dataset for the k-NN
+%   - nb_trials: total number of trials
+%   - k: number of neighbours to consider for the k-NN
 % Return: a fitness array where each value corresponds to the fitness of
 % each chromosome of the population
-function fitness_array = evalPop(pop, pop_size, nb_features)
+function fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
+    nb_trials_training, nb_trials, k)
     
     for i = (1: pop_size)
         %Build new mat according to features selected
@@ -225,12 +233,14 @@ end
 %   - pop: population of chromosomes
 %   - fitness_evolution: array of best fitness per generation
 %   - best fitness of the generation
+%   - best_features: best chromosome of the population
 % Return: 
 %   - sorted population
 %   - (updated) best fitness
 %   - updated array of best fitness per generation
-function [pop, fitness_evolution, best_fitness] = sortRecord(pop, ...
-    fitness_array, fitness_evolution, best_fitness)
+%   - best_features: best individual of the population
+function [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, ...
+    fitness_array, fitness_evolution, best_fitness, best_features)
     
     pop = [pop fitness_array'];
     
@@ -240,6 +250,7 @@ function [pop, fitness_evolution, best_fitness] = sortRecord(pop, ...
         
     if (pop(1, size(pop, 2)) > best_fitness)
         best_fitness = pop(1, size(pop, 2));
+        best_features =  pop(1, 1:size(pop, 2)-1);
     end
     
     fitness_evolution = [fitness_evolution best_fitness];
