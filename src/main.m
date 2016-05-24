@@ -44,3 +44,4 @@ bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
 %truc = kNN(mat_features, ex_events_Y, nb_trials_training, alleeg(nb_dataset).trials, k);
 %%%%truc = kNN(mat_features, ty, nb_trials_training, alleeg(nb_dataset).trials, k);
 truc = kNN(bestMat, ex_events, nb_trials_training, alleeg(nb_dataset).trials, k);
+

@@ -6,12 +6,14 @@ function res = featureSelection( mat, pop_size, nb_features, ...
     best_fitness = -Inf;
     fitness_evolution = [best_fitness];
     
+    mat
+    
     % Randomness using seed
     %rand('state',sum(100*clock));
     
     % Population initialisation
     pop = popInit(pop_size, nb_features);
-    
+        
     %Loop until the termination condition is reached
     while ((it < nb_iterations) & (best_fitness < 99.99))
         disp(['#### EPOCH n° ', num2str(it)]);
@@ -33,6 +35,9 @@ function res = featureSelection( mat, pop_size, nb_features, ...
     
     %Save the fitness evolution in a file
     dlmwrite('fitness_evol.csv', fitness_evolution', 'delimiter', ';');
+    
+    disp(['Best features: ', mat2str(best_features)]);
+    
     %Build matrix with the best features
     res = buildSubMat(mat, best_features, nb_features);
 end

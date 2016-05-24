@@ -19,8 +19,8 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, wavelet)
             
             %Extract details and approximation coefficients
             [cD, cA] = extractCoeff(level, c, l, wavelet);
-            
-            %Build features row associated to the current trial
+
+            %Build features row associated to the current trial (exclude cD{1})
             row_temp = buildRowFeatures(level, cD, cA);
 
             row = [row row_temp];
@@ -167,13 +167,17 @@ end
 % Return: Row features associated to a specific trial
 function row = buildRowFeatures(level, cD, cA)
     % Features associated to the detail coefficents
-    for j = (1: level)
-        rms(j) = rootMeanSquare(cD{j}');
-        mav(j) = meanAbsoluteValue(cD{j}');
-        ieeg(j) = integratedEEG(cD{j}');
-        ssi(j) = simpleSquareIntegral(cD{j}');
-        var(j) = varianceEEG(cD{j}');
-        aac(j) = averageAmplitudeChange(cD{j}');
+    for j = (2: level)
+        rms(j-1) = rootMeanSquare(cD{j}');
+        mav(j-1) = meanAbsoluteValue(cD{j}');
+        ieeg(j-1) = integratedEEG(cD{j}');
+        ssi(j-1) = simpleSquareIntegral(cD{j}');
+        var(j-1) = varianceEEG(cD{j}');
+        aac(j-1) = averageAmplitudeChange(cD{j}');
+        mini(j-1) = min(cD{j}');
+        maxi(j-1) = max(cD{j}');
+        meanVal(j-1) = mean(cD{j}');
+        stdVal(j-1) = std(cD{j}');
     end
     
     %Features associated to the approximation coeffients
@@ -183,6 +187,10 @@ function row = buildRowFeatures(level, cD, cA)
     ssi(level) = simpleSquareIntegral(cA);
     var(level) = varianceEEG(cA);
     aac(level) = averageAmplitudeChange(cA);
+    mini(level) = min(cA);
+    maxi(level) = max(cA);
+    meanVal(level) = mean(cA);
+    stdVal(level) = std(cA);
     
-    row = [rms mav ieeg ssi var aac];
+    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal];
 end
