@@ -1,13 +1,11 @@
 function res = featureSelection( mat, pop_size, nb_features, ...
-        nb_iterations, condition, k, nb_trials, nb_trials_training, events,...
+        nb_iterations, k, nb_trials, nb_trials_training, events,...
         crossover_rate, mutation_rate)
     best_features = [];
     it = 0;
     best_fitness = -Inf;
     fitness_evolution = [best_fitness];
-    
-    mat
-    
+        
     % Randomness using seed
     %rand('state',sum(100*clock));
     
@@ -226,7 +224,8 @@ function fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
         %Build new mat according to features selected
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
-        [~, accuracy, ~] = kNN(new_mat, events, nb_trials_training, nb_trials, k);
+        %[~, accuracy, ~] = kNN(new_mat, events, nb_trials_training, nb_trials, k);
+        accuracy = SVM_func(new_mat, events, nb_trials_training, nb_trials);
         fitness_array(i) = accuracy;
     end
 end

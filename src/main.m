@@ -38,10 +38,19 @@ mat_features = featuresExtraction(final_mat_X, level, ...,
 
 % #### 3: Features selection
 bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
-        200, 0.001, k, 40, nb_trials_training, events, 0.8, 0.1);
+        200, k, 40, nb_trials_training, ex_events, 0.8, 0.1);
 
 % #### X: Apply k-NN
+disp(['###################### Final accuracy ############################']);
 %truc = kNN(mat_features, ex_events_Y, nb_trials_training, alleeg(nb_dataset).trials, k);
 %%%%truc = kNN(mat_features, ty, nb_trials_training, alleeg(nb_dataset).trials, k);
-truc = kNN(bestMat, ex_events, nb_trials_training, alleeg(nb_dataset).trials, k);
+% RAW
+%truc = kNN(final_mat_X, ex_events_Y, nb_trials_training,...
+%    alleeg(nb_dataset).trials, k);
+% k-NN
+%truc = kNN(bestMat, ex_events, nb_trials_training, ...
+%    alleeg(nb_dataset).trials, k);
+% SVM
+truc = SVM_func(bestMat, ex_events, nb_trials_training, ...
+    alleeg(nb_dataset).trials);
 

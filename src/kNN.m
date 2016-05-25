@@ -23,7 +23,7 @@ function [predictions, accuracy, observed] = kNN( final_mat_X, ex_events_Y, nb_t
     %[training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
     %    X, Y, nb_trials, tot_trials);
 
-%    dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
+    dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
     
     % #### 4: Apply kNN on test set with train set as reference
     [predictions, accuracy, observed] = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y);
@@ -221,5 +221,6 @@ function [predictions, accuracy, testing_Y] = aux_knn(training_dataset, testing_
         end
     end
     
-    accuracy = temp / length(training_Y)*100;
+    %accuracy = temp / length(training_Y)*100;
+    accuracy = temp / length(testing_Y)*100;
 end
