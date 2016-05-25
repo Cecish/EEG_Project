@@ -1,3 +1,89 @@
+% Deciding which classifier to apply given an identifier
+% Params:
+%   - id: identifier of the classifier (1: kNN, 2: SVM, etc...)
+%   - final_mat_X: data used for the classification
+%   - ex_events_Y: target field associated to each row of data
+%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
+%   - tot_trials: total number of events
+%   - k: number of nearest neighbours to consider for the kNN
+% Return: predictions made and accuracy score
+function [ predictions, accuracy ] = classifiers( id, final_mat_X, ...
+    ex_events_Y, nb_trials, tot_trials, k)
+
+    switch id
+        case 1 %kNN
+            %[predictions, accuracy] = kNN( final_mat_X, ex_events_Y, ...
+            %    nb_trials, tot_trials, k );
+            [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
+                nb_trials, tot_trials, k );
+        case 2 %SVM
+            [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
+                nb_trials, tot_trials );
+        otherwise
+            error('Wrong classifier identifier: %d', id);
+    end
+end
+
+
+% Support Vector Machine
+% Params: 
+%   - final_mat_X: data used for the classification
+%   - ex_events_Y: target field associated to each row of data
+%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
+%   - tot_trials: total number of events
+% Return: predictions made and accuracy score
+function [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
+    nb_trials, tot_trials )
+
+    % #### 1: Min-Max normalisation
+    width = size(final_mat_X, 2); %14, 24
+    height = size(final_mat_X, 1);   %3280, 560
+    manipFuns = dataManipFunctions; 
+    
+    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+    
+    % #### 3: Split data into test train/train dataset
+    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
+        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
+    
+    %Train SVM
+    svmStruct = svmtrain(training_dataset, training_Y, 'ShowPlot',false);
+    
+    %Test SVM
+    predictions = svmclassify(svmStruct, testing_dataset, 'ShowPlot', false);
+    
+    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
+        tot_trials-nb_trials);
+    disp(['Accuracy = ', num2str(accuracy), '%']);
+end
+
+
+function [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
+    nb_trials, tot_trials, k )
+
+    % #### 1: Min-Max normalisation
+    width = size(final_mat_X, 2); %14, 24
+    height = size(final_mat_X, 1);   %3280, 560
+    manipFuns = dataManipFunctions; 
+    
+    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+    
+    % #### 3: Split data into test train/train dataset
+    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
+        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
+
+    %Train kNN
+    Mdl = fitcknn(training_dataset, training_Y, 'NumNeighbors',k);
+    
+    %Test kNN
+    predictions = predict(Mdl, testing_dataset);
+    
+    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
+        tot_trials-nb_trials);
+    disp(['Accuracy = ', num2str(accuracy), '%']);
+end
+
+
 % Applying the kNN on a traning set and getting an accuracy score
 % Params:
 %   - final_mat_X: eeg recordings, 2D matrix (nb_records x channels)
@@ -6,27 +92,30 @@
 %   whole data matrix
 %   - tot_trials: number of trials when acquiring the data
 %   - k: number of neighbours to consider
-% Retun : accuracy score
-function [predictions, accuracy, observed] = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
+% Retun : accuracy score and predictions made
+function [predictions, accuracy] = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
 
     % #### 1: Min-Max normalisation
     width = size(final_mat_X, 2); %14, 24
     height = size(final_mat_X, 1);   %3280, 560
-    minmax_X = MinMaxNorm(final_mat_X, height, width);
+    manipFuns = dataManipFunctions;
+    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
  
     % #### 2: Randomly shuffle trials in final_mat_X and ex_events_Y
     %[X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
     
     % #### 3: Split data into test train/train dataset
-    [training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
-        minmax_X, ex_events_Y, nb_trials, tot_trials);
-    %[training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(...
-    %    X, Y, nb_trials, tot_trials);
+    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
+        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
+    %[training_dataset, testing_dataset, training_Y, testing_Y] = ...
+    %    manipFuns.splitXY(X, Y, nb_trials, tot_trials);
 
     dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
     
     % #### 4: Apply kNN on test set with train set as reference
-    [predictions, accuracy, observed] = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y);
+    predictions = aux_knn(training_dataset, testing_dataset, k, training_Y);
+    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
+        tot_trials - nb_trials);
     disp(['Accuracy with ', num2str(k), '-NN = ', num2str(accuracy), '%']);
     
     % Proportion
@@ -35,60 +124,6 @@ function [predictions, accuracy, observed] = kNN( final_mat_X, ex_events_Y, nb_t
     %disp(['1 = ', num2str(zero_y), '% and 0 = ', num2str(100-zero_y), '%']);
 end
 
-% Min max normalisation of a 2D matrix
-% Params: 
-%   - dataset: 2D matrix
-%   - height: of the matrix
-%   - width: of the matrix
-% Return: the coresponding minmax normalised matrix
-function res_matrix = MinMaxNorm(dataset, height, width)
-
-    %Finding the min and the max valus of each columns
-    minmax_arrays = findMinMax(dataset, height, width);
-
-    for j = (1: width)
-        for i = (1 : height)
-            res_matrix(i, j) = (dataset(i, j)-minmax_arrays(1, j))/...
-                (minmax_arrays(2, j)-minmax_arrays(1, j));
-        end
-    end
-end
-
-% Find min max arrays for each column of the data matrix
-% Params: 
-%   - dataset: matrix
-%   - height: of the matrix
-%   - width: of the matrix
-% Return: A 2 x nb_col matrix where the first row stores the min of each
-% column and the second row stores the max of each column
-function minMax_arrays = findMinMax(dataset, height, width)
-    
-    %Min
-    for j = (1: width)
-        min = Inf;
-        for i = (1:height)
-            if (dataset(i, j) < min)
-                min = dataset(i, j);
-            end
-        end
-        
-        %disp(['Minimum of column', num2str(j), ' = ', num2str(min)]);
-        minMax_arrays(1, j) = min;
-    end
-
-    %Max
-    for i = (1 : width)
-        max = -Inf;
-        for j = (1: height)
-            if ( dataset(j, i) > max)
-                max = dataset(j, i);
-            end
-        end
-        
-        %disp(['Maximum of column', num2str(i), ' = ', num2str(max)]);
-        minMax_arrays(2, i) = max;
-    end
-end
 
 % Randomly shuffle the dataset by trials
 % Params:
@@ -140,29 +175,6 @@ function [X, Y] = updateShuffle(mat_X, events, tot_trials, shuffled_trials)
 end
 
 
-% Split the data matrix and events into train and test subsets
-% Ratio: nb_trials/(total_trials _ nb_trials) for train/test
-% Params: 
-%   - X: data matrix
-%   - Y: corresponding events array
-%   - nb_trials: number of trials in the train subset
-%   - tot_trials: total number of trials
-% Return: 
-%   - training_dataset
-%   - testing_dataset
-%   - training_Y: extracted from the events array
-%   - testing_Y: extracted from the events array
-function [training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(X, Y, nb_trials, tot_trials)
-
-    nb_rows_per_trial = size(X, 1) / tot_trials;
-    
-    training_dataset(1:nb_trials * nb_rows_per_trial, :) = X(1:nb_trials * nb_rows_per_trial, :);
-    testing_dataset(1:(size(X, 1)-(nb_trials * nb_rows_per_trial)), :) = X((nb_trials * nb_rows_per_trial)+1:size(X, 1), :);
-    training_Y(1:nb_trials * nb_rows_per_trial) = Y(1:nb_trials * nb_rows_per_trial);
-    testing_Y(1:(size(X, 1)-(nb_trials * nb_rows_per_trial))) = Y((nb_trials * nb_rows_per_trial)+1:size(X, 1));
-end
-
-
 % Extract the k nearest neighbours to a test instance
 % Params: 
 %   - training_set
@@ -184,15 +196,15 @@ function neighbours = getNeighbours(training_set, test_instance, k)
     end
 end
 
+
 % Calculate the accuracy score
 % Params: 
 %   - training_dataset
 %   - testing_dataset
 %   - k: number of nearest neighbours considered
 %   - training_Y: events associated to the training data
-%   - testing_Y: events associated to the testing data
-% Return: the accuracy score
-function [predictions, accuracy, testing_Y] = aux_knn(training_dataset, testing_dataset, k, training_Y, testing_Y)
+% Return: class predictions
+function predictions = aux_knn(training_dataset, testing_dataset, k, training_Y)
     temp = 0.0;
         
     for i = (1: size(testing_dataset, 1))
@@ -214,13 +226,7 @@ function [predictions, accuracy, testing_Y] = aux_knn(training_dataset, testing_
         end
         
         predictions(i) = state;
-        
-        %If guess is correct, update the accuracy
-        if isequal(state, testing_Y(i))
-            temp = temp + 1;
-        end
     end
-    
-    %accuracy = temp / length(training_Y)*100;
-    accuracy = temp / length(testing_Y)*100;
 end
+
+

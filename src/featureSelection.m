@@ -1,6 +1,6 @@
 function res = featureSelection( mat, pop_size, nb_features, ...
         nb_iterations, k, nb_trials, nb_trials_training, events,...
-        crossover_rate, mutation_rate)
+        crossover_rate, mutation_rate, classifier)
     best_features = [];
     it = 0;
     best_fitness = -Inf;
@@ -13,12 +13,12 @@ function res = featureSelection( mat, pop_size, nb_features, ...
     pop = popInit(pop_size, nb_features);
         
     %Loop until the termination condition is reached
-    while ((it < nb_iterations) & (best_fitness < 99.99))
+    while ((it < nb_iterations) & (best_fitness < 100.00))
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Evaluate the fitness of each chromosome in the population
         fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
-            nb_trials_training, nb_trials, k);
+            nb_trials_training, nb_trials, k, classifier);
 
         % Sort the population by fitness and record the best fitness of the generation
         [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, fitness_array, ...
@@ -218,14 +218,17 @@ end
 % Return: a fitness array where each value corresponds to the fitness of
 % each chromosome of the population
 function fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
-    nb_trials_training, nb_trials, k)
-    
+    nb_trials_training, nb_trials, k, classifier)
+
     for i = (1: pop_size)
         %Build new mat according to features selected
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
-        %[~, accuracy, ~] = kNN(new_mat, events, nb_trials_training, nb_trials, k);
-        accuracy = SVM_func(new_mat, events, nb_trials_training, nb_trials);
+        %[~, accuracy] = kNN(new_mat, events, nb_trials_training, nb_trials, k);
+        %[~, accuracy] = SVM_func(new_mat, events, nb_trials_training, nb_trials);
+        [~, accuracy] = classifiers(classifier, new_mat, events,...
+            nb_trials_training, nb_trials, k);
+        
         fitness_array(i) = accuracy;
     end
 end

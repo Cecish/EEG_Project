@@ -14,11 +14,14 @@ notch_filter = [49 51]; %Hz
 extract_epochs = [0 0.640]; %[starting the event 769 or 770 - end of the event]ms
 level = 5; %For the discrete wavelet wavelet transform
 wavelet = 'sym1'; %For the discrete wavelet wavelet transform
+classifier = 1; %1: kNN, 2: SVM
 % ############################
+%[ hand, k, path_data_file, name_data_file, level, wavelet, classifier ] = menu();
 
 %Random seed
 %reset(RandStream.getDefaultStream,sum(100*clock)); 
 rand('state',sum(100*clock));
+
 
 % EEGLAB (include loading, preprocessing and extraction the EEG data)
 alleeg = eeglab_script(path_data_file, name_data_file, name_dataset, ...
@@ -38,7 +41,7 @@ mat_features = featuresExtraction(final_mat_X, level, ...,
 
 % #### 3: Features selection
 bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
-        200, k, 40, nb_trials_training, ex_events, 0.8, 0.1);
+        200, k, 40, nb_trials_training, ex_events, 0.8, 0.1, classifier);
 
 % #### X: Apply k-NN
 disp(['###################### Final accuracy ############################']);
@@ -51,6 +54,8 @@ disp(['###################### Final accuracy ############################']);
 %truc = kNN(bestMat, ex_events, nb_trials_training, ...
 %    alleeg(nb_dataset).trials, k);
 % SVM
-truc = SVM_func(bestMat, ex_events, nb_trials_training, ...
-    alleeg(nb_dataset).trials);
+%truc = SVM_func(bestMat, ex_events, nb_trials_training, ...
+%    alleeg(nb_dataset).trials);
+[predictions, accuracy] = classifiers(classifier, bestMat, ex_events,...
+    nb_trials_training, alleeg(nb_dataset).trials, k);
 
