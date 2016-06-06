@@ -1,5 +1,24 @@
-function [res, best_features] = featureSelection( mat, pop_size, nb_features, ...
-        nb_iterations, k, nb_trials, nb_trials_training, events,...
+% Feature selection
+% Params: 
+%   - mat: initial matrix with all the features previously extracted
+%   - pop_size: size of the population for the genetic algorithm
+%   - nb_features: total number of features
+%   - nb_iterations: number of iterations for the genetic algorithm
+%   - k: number of nearest neighbours to consider with the k-NN classifier
+%   - nb_trials: total number of trials
+%   - nb_trials_training: number of trials to consider for the training
+%   - events: known outcome associated to each trial
+%   - crossover_rate: for the crossover operator inside the genetic algorithm
+%   - mutation_rate: for the mutation operator inside the genetic algorithm
+%   - classifier: id of the chosen classifier 
+% Return: 
+%   - res: sub matrix (with a reduced number of features) that led to the
+%     best accuracy score
+%   - best_features: subset of features that led to the best accuracy score
+%   - best_net: trained MLP that led to the best accuracy score (when the MLP 
+%     classifier is chosen)
+function [res, best_features, best_net] = featureSelection( mat, pop_size,...
+        nb_features, nb_iterations, k, nb_trials, nb_trials_training, events,...
         crossover_rate, mutation_rate, classifier)
     best_features = [];
     it = 0;
@@ -17,13 +36,14 @@ function [res, best_features] = featureSelection( mat, pop_size, nb_features, ..
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Evaluate the fitness of each chromosome in the population
-        fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
-            nb_trials_training, nb_trials, k, classifier);
+        [fitness_array, net_array] = evalPop(mat, pop, pop_size, ...
+            nb_features, events, nb_trials_training, nb_trials, k, classifier);
 
         % Sort the population by fitness and record the best fitness of the generation
-        [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, fitness_array, ...
-            fitness_evolution, best_fitness, best_features);
-        
+        [pop, fitness_evolution, best_fitness, best_features, best_net] = ...
+            sortRecord(pop, fitness_array, fitness_evolution, ...
+            best_fitness, best_features, net_array);
+
         % ####2: Create a new population
         pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
             fitness_array, nb_features);
@@ -216,21 +236,22 @@ end
 %       dataset for the k-NN
 %   - nb_trials: total number of trials
 %   - k: number of neighbours to consider for the k-NN
+%   - classifier: identification of the chosen classifier
 % Return: a fitness array where each value corresponds to the fitness of
-% each chromosome of the population
-function fitness_array = evalPop(mat, pop, pop_size, nb_features, events, ...
-    nb_trials_training, nb_trials, k, classifier)
+% each chromosome of the population + trained ANNs array if the chosen classifier
+% is the Multi-Layer Perceptron
+function [fitness_array, net_array] = evalPop(mat, pop, pop_size, ...
+    nb_features, events, nb_trials_training, nb_trials, k, classifier)
 
     for i = (1: pop_size)
         %Build new mat according to features selected
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
-        %[~, accuracy] = kNN(new_mat, events, nb_trials_training, nb_trials, k);
-        %[~, accuracy] = SVM_func(new_mat, events, nb_trials_training, nb_trials);
-        [~, accuracy] = classifiers(classifier, new_mat, events,...
-            nb_trials_training, nb_trials, k);
+        [~, accuracy, net] = classifiers(classifier, new_mat, events,...
+            nb_trials_training, nb_trials, k, 0);
         
         fitness_array(i) = accuracy;
+        net_array{i} = net;
     end
 end
 
@@ -239,23 +260,28 @@ end
 % the best fitness achieved for this generation
 % Params: 
 %   - pop: population of chromosomes
+%   - fitness_array: array of fitnesses for one generation
 %   - fitness_evolution: array of best fitness per generation
 %   - best fitness of the generation
 %   - best_features: best chromosome of the population
+%   - net_array: array of MLPs for one generation
 % Return: 
 %   - sorted population
-%   - (updated) best fitness
 %   - updated array of best fitness per generation
+%   - (updated) best fitness
 %   - best_features: best individual of the population
-function [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, ...
-    fitness_array, fitness_evolution, best_fitness, best_features)
+%   - best trained ANN per generation (if the MLP is the chosen clasifier)
+function [pop, fitness_evolution, best_fitness, best_features, best_net] = ...
+    sortRecord(pop, fitness_array, fitness_evolution, best_fitness, ...
+    best_features, net_array)
     
     pop = [pop fitness_array'];
     
     [~, idx] = sort(pop(:, size(pop, 2)), 'descend');
     
     pop = pop(idx, :);
-        
+    best_net = net_array{idx};    
+    
     if (pop(1, size(pop, 2)) > best_fitness)
         best_fitness = pop(1, size(pop, 2));
         best_features =  pop(1, 1:size(pop, 2)-1);

@@ -6,10 +6,12 @@
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
 %   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider for the kNN
-% Return: predictions made and accuracy score
-function [ predictions, accuracy ] = classifiers( id, final_mat_X, ...
-    ex_events_Y, nb_trials, tot_trials, k)
-
+%   - net0: previously trained MLP or (0 if not)
+% Return: predictions made and accuracy score (+ trained ANN if the chosen
+% classifier is the Multi-Layer Perceptron)
+function [ predictions, accuracy, net ] = classifiers( id, final_mat_X, ...
+    ex_events_Y, nb_trials, tot_trials, k, net0)
+    net = 0;
     switch id
         case 1 %kNN
             [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
@@ -18,8 +20,8 @@ function [ predictions, accuracy ] = classifiers( id, final_mat_X, ...
             [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
                 nb_trials, tot_trials );
         case 3 %MLP
-            [predictions, accuracy] = MLP_func( final_mat_X, ex_events_Y, ...
-                nb_trials, tot_trials );
+            [predictions, accuracy, net] = MLP_func( final_mat_X, ex_events_Y, ...
+                nb_trials, tot_trials, net0 );
         otherwise
             error('Wrong classifier identifier: %d', id);
     end
@@ -99,9 +101,9 @@ end
 %   - ex_events_Y: target field associated to each row of data
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
 %   - tot_trials: total number of events
-% Return: predictions made and accuracy score
-function [predictions, accuracy] = MLP_func( final_mat_X, ex_events, ...
-    nb_trials, tot_trials)
+% Return: predictions made and accuracy score + trained ANN
+function [predictions, accuracy, net] = MLP_func( final_mat_X, ex_events, ...
+    nb_trials, tot_trials, net)
 
     % #### 1: Min-Max normalisation
     width = size(final_mat_X, 2);
@@ -109,30 +111,32 @@ function [predictions, accuracy] = MLP_func( final_mat_X, ex_events, ...
     manipFuns = dataManipFunctions; 
     
     minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+    
+    if isequal(net, 0)
+        % Choose a Training Function
+        % For a list of all training functions type: help nntrain
+        % 'trainlm' is usually fastest.
+        % 'trainbr' takes longer but may be better for challenging problems.
+        % 'trainscg' uses less memory. Suitable in low memory situations.
+        trainFcn = 'trainbr'; %'trainscg';  % Scaled conjugate gradient backpropagation.
 
-    % Choose a Training Function
-    % For a list of all training functions type: help nntrain
-    % 'trainlm' is usually fastest.
-    % 'trainbr' takes longer but may be better for challenging problems.
-    % 'trainscg' uses less memory. Suitable in low memory situations.
-    trainFcn = 'trainbr'; %'trainscg';  % Scaled conjugate gradient backpropagation.
-     
-    % Create a Pattern Recognition Network
-    hiddenLayerSize = 10;
-    net = patternnet(hiddenLayerSize);
-    net.numLayers = 3;
-    %net.trainFcn = trainFcn;
-    net.trainParam.showWindow = false;
-    net.trainParam.showCommandLine = false; 
+        % Create a Pattern Recognition Network
+        hiddenLayerSize = 10;
+        net = patternnet(hiddenLayerSize);
+        net.numLayers = 3;
+        %net.trainFcn = trainFcn;
+        net.trainParam.showWindow = false;
+        net.trainParam.showCommandLine = false; 
 
-    % Setup Division of Data for Training, Validation, Testing
-    net.divideParam.trainRatio = 70/100;
-    net.divideParam.valRatio = 15/100;
-    net.divideParam.testRatio = 15/100;
+        % Setup Division of Data for Training, Validation, Testing
+        net.divideParam.trainRatio = 70/100;
+        net.divideParam.valRatio = 15/100;
+        net.divideParam.testRatio = 15/100;
 
-    % Train the Network
-    [net,tr] = train(net, minmax_X', ex_events);
-
+        % Train the Network
+        [net,tr] = train(net, minmax_X', ex_events);
+    end
+    
     % Test the Network
     y = net(minmax_X');
     predictions = decisionOutcome(y, tot_trials);

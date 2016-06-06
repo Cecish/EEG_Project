@@ -32,11 +32,11 @@ mat_features = featuresExtraction(final_mat_X, level, ...,
     alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset).nbchan);
 
 % #### 3: Features selection
-bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
+[bestMat, ~, ann_net] = featureSelection( mat_features, 20, size(mat_features, 2), ...
         200, k, 40, nb_trials_training, ex_events, 0.8, 0.1, classifier);
-
+    
 % #### X: Apply k-NN
 disp(['###################### Final accuracy ############################']);
-[predictions, accuracy] = classifiers(classifier, bestMat, ex_events,...
-    nb_trials_training, alleeg(nb_dataset).trials, k);
+[predictions, accuracy, ~] = classifiers(classifier, bestMat, ex_events,...
+    nb_trials_training, alleeg(nb_dataset).trials, k, ann_net);
 
