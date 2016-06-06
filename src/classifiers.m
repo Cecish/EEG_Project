@@ -1,6 +1,6 @@
 % Deciding which classifier to apply given an identifier
 % Params:
-%   - id: identifier of the classifier (1: kNN, 2: SVM, etc...)
+%   - id: identifier of the classifier (1: kNN, 2: SVM, 3: MLP)
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
@@ -12,12 +12,13 @@ function [ predictions, accuracy ] = classifiers( id, final_mat_X, ...
 
     switch id
         case 1 %kNN
-            %[predictions, accuracy] = kNN( final_mat_X, ex_events_Y, ...
-            %    nb_trials, tot_trials, k );
             [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
                 nb_trials, tot_trials, k );
         case 2 %SVM
             [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
+                nb_trials, tot_trials );
+        case 3 %MLP
+            [predictions, accuracy] = MLP_func( final_mat_X, ex_events_Y, ...
                 nb_trials, tot_trials );
         otherwise
             error('Wrong classifier identifier: %d', id);
@@ -58,6 +59,14 @@ function [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
 end
 
 
+% K-Nearest Neighbours
+% Params: 
+%   - final_mat_X: data used for the classification
+%   - ex_events_Y: target field associated to each row of data
+%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
+%   - tot_trials: total number of events
+%   - k: number of nearest neighbours to consider
+% Return: predictions made and accuracy score
 function [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
     nb_trials, tot_trials, k )
 
@@ -81,6 +90,72 @@ function [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
     accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
         tot_trials-nb_trials);
     disp(['Accuracy = ', num2str(accuracy), '%']);
+end
+
+
+% Multi-Layer Perceptron
+% Params: 
+%   - final_mat_X: data used for the classification
+%   - ex_events_Y: target field associated to each row of data
+%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
+%   - tot_trials: total number of events
+% Return: predictions made and accuracy score
+function [predictions, accuracy] = MLP_func( final_mat_X, ex_events, ...
+    nb_trials, tot_trials)
+
+    % #### 1: Min-Max normalisation
+    width = size(final_mat_X, 2);
+    height = size(final_mat_X, 1);
+    manipFuns = dataManipFunctions; 
+    
+    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+
+    % Choose a Training Function
+    % For a list of all training functions type: help nntrain
+    % 'trainlm' is usually fastest.
+    % 'trainbr' takes longer but may be better for challenging problems.
+    % 'trainscg' uses less memory. Suitable in low memory situations.
+    trainFcn = 'trainbr'; %'trainscg';  % Scaled conjugate gradient backpropagation.
+     
+    % Create a Pattern Recognition Network
+    hiddenLayerSize = 10;
+    net = patternnet(hiddenLayerSize);
+    net.numLayers = 3;
+    %net.trainFcn = trainFcn;
+    net.trainParam.showWindow = false;
+    net.trainParam.showCommandLine = false; 
+
+    % Setup Division of Data for Training, Validation, Testing
+    net.divideParam.trainRatio = 70/100;
+    net.divideParam.valRatio = 15/100;
+    net.divideParam.testRatio = 15/100;
+
+    % Train the Network
+    [net,tr] = train(net, minmax_X', ex_events);
+
+    % Test the Network
+    y = net(minmax_X');
+    predictions = decisionOutcome(y, tot_trials);
+    
+    accuracy = manipFuns.calculateAccuracy(predictions, ex_events, ...
+        tot_trials-nb_trials);
+    disp(['Accuracy = ', num2str(accuracy), '%']);
+end
+
+
+% Transforming the outcome approximation into binary numbers
+% Parameters:
+%   - y: array of outcome approximations
+%   - length: length of the array y
+% Return: array of binary outcome
+function predictions = decisionOutcome(y, length)
+    for i = (1: length)
+       if (y(i) < 0.5)
+           predictions(i) = 0;
+       else
+           predictions(i) = 1;
+       end
+    end
 end
 
 

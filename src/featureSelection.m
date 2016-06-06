@@ -1,9 +1,9 @@
-function res = featureSelection( mat, pop_size, nb_features, ...
+function [res, best_features] = featureSelection( mat, pop_size, nb_features, ...
         nb_iterations, k, nb_trials, nb_trials_training, events,...
         crossover_rate, mutation_rate, classifier)
     best_features = [];
     it = 0;
-    best_fitness = -Inf;
+    best_fitness = -Inf
     fitness_evolution = [best_fitness];
         
     % Randomness using seed
@@ -23,12 +23,13 @@ function res = featureSelection( mat, pop_size, nb_features, ...
         % Sort the population by fitness and record the best fitness of the generation
         [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop, fitness_array, ...
             fitness_evolution, best_fitness, best_features);
-        %size(best_features)
+        
         % ####2: Create a new population
         pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
             fitness_array, nb_features);
         
         it = it + 1; % Increment
+        fitness_evolution(it)
     end
     
     %Save the fitness evolution in a file
@@ -251,8 +252,8 @@ function [pop, fitness_evolution, best_fitness, best_features] = sortRecord(pop,
     
     pop = [pop fitness_array'];
     
-    %sortrows(pop, size(pop, 2), 'descend');
     [~, idx] = sort(pop(:, size(pop, 2)), 'descend');
+    
     pop = pop(idx, :);
         
     if (pop(1, size(pop, 2)) > best_fitness)

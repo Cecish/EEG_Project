@@ -2,30 +2,22 @@
 format long;
 
 % ######## Parameters ########
-%nb_dataset = 5; % index of the EEG variable to consider among the ALLEEG global variable
-hand = 'r';      % hand which wears the robotic glove (either 'r'-right or 'l'-left)
 nb_trials_training = 27; %11; % Ratio train/test for getting an accuracy score
-k = 1;  % Number of nearest neighbours
-path_data_file = 'H:\MasterProject\RawEEGData\EPOC\acquisition\ToUse-Alistair\';
-name_data_file = 'motor-imagery-csp-1-acquisition-[2016.03.18-16.55.10]_alistair.vdhr';
-name_dataset = 'raw Alistair';
 highpass_filter = 1; %Hz
 notch_filter = [49 51]; %Hz
-extract_epochs = [0 0.640]; %[starting the event 769 or 770 - end of the event]ms
-level = 5; %For the discrete wavelet wavelet transform
-wavelet = 'sym1'; %For the discrete wavelet wavelet transform
-classifier = 1; %1: kNN, 2: SVM
 % ############################
-%[ hand, k, path_data_file, name_data_file, level, wavelet, classifier ] = menu();
+
+% Letting the user decide of some settings in a console menu
+[ hand, k, path_data_file, name_data_file, level, wavelet, classifier, ...
+    device ] = menu();
 
 %Random seed
-%reset(RandStream.getDefaultStream,sum(100*clock)); 
 rand('state',sum(100*clock));
 
 
 % EEGLAB (include loading, preprocessing and extraction the EEG data)
-alleeg = eeglab_script(path_data_file, name_data_file, name_dataset, ...
-    highpass_filter, notch_filter, extract_epochs);
+alleeg = eeglab_script(path_data_file, name_data_file, highpass_filter, ...
+    notch_filter, device);
 
 % Update. For my tests. Can be commented and specified directly in the
 % parameters section
@@ -37,7 +29,7 @@ load('data_events.mat');
 
 % #### 2: Features extraction
 mat_features = featuresExtraction(final_mat_X, level, ..., 
-    alleeg(nb_dataset).trials, wavelet);
+    alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset).nbchan);
 
 % #### 3: Features selection
 bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
@@ -45,17 +37,6 @@ bestMat = featureSelection( mat_features, 20, size(mat_features, 2), ...
 
 % #### X: Apply k-NN
 disp(['###################### Final accuracy ############################']);
-%truc = kNN(mat_features, ex_events_Y, nb_trials_training, alleeg(nb_dataset).trials, k);
-%%%%truc = kNN(mat_features, ty, nb_trials_training, alleeg(nb_dataset).trials, k);
-% RAW
-%truc = kNN(final_mat_X, ex_events_Y, nb_trials_training,...
-%    alleeg(nb_dataset).trials, k);
-% k-NN
-%truc = kNN(bestMat, ex_events, nb_trials_training, ...
-%    alleeg(nb_dataset).trials, k);
-% SVM
-%truc = SVM_func(bestMat, ex_events, nb_trials_training, ...
-%    alleeg(nb_dataset).trials);
 [predictions, accuracy] = classifiers(classifier, bestMat, ex_events,...
     nb_trials_training, alleeg(nb_dataset).trials, k);
 

@@ -4,8 +4,10 @@
 %   - level: decomposition level of the discrete wavelet transform
 %   - nb_events: number of events/trials
 %   - wavelet
+%   - nb_channels
 % Return: [40 x nb_channels*level*nb_features] matrix, for each event
-function mat_features = featuresExtraction(mat_X, level, nb_events, wavelet)
+function mat_features = featuresExtraction(mat_X, level, nb_events, ...
+    wavelet, nb_channels)
     
     % For each trial/event
     for i = (1: nb_events)
@@ -13,7 +15,7 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, wavelet)
         row = [];
 
         %For each channel
-        for k = (1: 14)
+        for k = (1: nb_channels)
             % Discrete wavelet transform
             [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
             
@@ -179,18 +181,6 @@ function row = buildRowFeatures(level, cD, cA)
         meanVal(j-1) = mean(cD{j}');
         stdVal(j-1) = std(cD{j}');
     end
-    
-    %Features associated to the approximation coeffients
-    rms(level) = rootMeanSquare(cA);
-    mav(level) = meanAbsoluteValue(cA);
-    ieeg(level) = integratedEEG(cA);
-    ssi(level) = simpleSquareIntegral(cA);
-    var(level) = varianceEEG(cA);
-    aac(level) = averageAmplitudeChange(cA);
-    mini(level) = min(cA);
-    maxi(level) = max(cA);
-    meanVal(level) = mean(cA);
-    stdVal(level) = std(cA);
     
     row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal];
 end

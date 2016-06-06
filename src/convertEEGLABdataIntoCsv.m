@@ -47,16 +47,16 @@ end
 % Build the target field column
 % Params: 
 %   - eeg: 2D matrix storing the EEG records
-%   - hand: glove worn on the right ('r') or left ('l') hand
+%   - hand: glove worn on the right (1) or left (2) hand
 % Return events associated to each records (in array)
 function [ex_events, ex_events_Y] = buildTargetField(eeg, hand, length_mat)
     switch hand
-        case 'r'
+        case 1
             ex_events = extract_events(eeg, 'S770');
-        case 'l'
+        case 2
             ex_events = extract_events(eeg, 'S769');
         otherwise
-            error('The glove is either on the right (r) or left (l) hand.\n You said: %d', hand);
+            error('The glove is either on the right (1) or left (2) hand.\n You said: %d', hand);
     end
     
     %Producing a colunm with the target field associating to each record
