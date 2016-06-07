@@ -49,7 +49,6 @@ function [res, best_features, best_net] = featureSelection( mat, pop_size,...
             fitness_array, nb_features);
         
         it = it + 1; % Increment
-        fitness_evolution(it)
     end
     
     %Save the fitness evolution in a file

@@ -19,8 +19,7 @@ rand('state',sum(100*clock));
 alleeg = eeglab_script(path_data_file, name_data_file, highpass_filter, ...
     notch_filter, device);
 
-% Update. For my tests. Can be commented and specified directly in the
-% parameters section
+% Id of the latest preprocessed eeglab variable
 nb_dataset = length(alleeg);
 
 % #### 1: convert the data loaded on eeglab into a csv file and mat variables

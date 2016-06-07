@@ -15,8 +15,8 @@ function [ hand, k, path_data_file, name_data_file, level, wavelet,...
     disp([' ---------------------------------------------------------- ']);
     disp(['|                        Parameters                        |']);
     disp([' ---------------------------------------------------------- ']);
-    hand = str2num(input('Rehabilitation on the\n1. right hand\n2. left hand','s')); 
-    device = str2num(input('Which device are you using?\n1. Emotiv EPOC\n2. actiCAP','s')); 
+    hand = str2num(input('Rehabilitation on the\n1. right hand\n2. left hand\n','s')); 
+    device = str2num(input('Which device are you using?\n1. Emotiv EPOC\n2. actiCAP\n','s')); 
     path_data_file = input(strcat('Path of the raw EEG data file?', ... 
         '(H:\\MasterProject\\RawEEGData\\actiCAP\\SAL01\\Online\\)\n'),'s'); 
     name_data_file = input(strcat('Name of the raw EEG data file? ', ...

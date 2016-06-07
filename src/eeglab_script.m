@@ -67,7 +67,7 @@ function epoch_interval = extractEpochInterval(device)
     if isequal(device, 1) %EPOC
         epoch_interval = [0 0.640];
     else %actiCAP
-        epoch_interval = [0 1]
+        epoch_interval = [0 1];
     end
 end
 
