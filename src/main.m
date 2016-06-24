@@ -1,23 +1,23 @@
+clear all;
 % Format precision
 format long;
 
 % ######## Parameters ########
-nb_trials_training = 27; %11; % Ratio train/test for getting an accuracy score
+nb_trials_training = 28; %11; % Ratio train/test for getting an accuracy score
 highpass_filter = 1; %Hz
-notch_filter = [49 51]; %Hz
+notch_filter = [58 62]; %Hz
 % ############################
 
 % Letting the user decide of some settings in a console menu
-[ hand, k, path_data_file, name_data_file, level, wavelet, classifier, ...
-    device ] = menu();
+[hand, k, path_data_file, name_data_file, level, wavelet, classifier] = menu();
 
 %Random seed
-rand('state',sum(100*clock));
+rng(sum(100*clock));
 
-
+% #### 0: Preprocesing
 % EEGLAB (include loading, preprocessing and extraction the EEG data)
 alleeg = eeglab_script(path_data_file, name_data_file, highpass_filter, ...
-    notch_filter, device);
+    notch_filter);
 
 % Id of the latest preprocessed eeglab variable
 nb_dataset = length(alleeg);
@@ -26,16 +26,51 @@ nb_dataset = length(alleeg);
 convertEEGLABdataIntoCsv(nb_dataset, alleeg, hand);
 load('data_events.mat');
 
-% #### 2: Features extraction
-mat_features = featuresExtraction(final_mat_X, level, ..., 
+% #### 2: Min-Max normalisation
+width = size(final_mat_X, 2);
+height = size(final_mat_X, 1);
+manipFuns = dataManipFunctions; 
+    
+minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+
+% #### 3: Features extraction
+mat_features = featuresExtraction(minmax_X, level, ...
     alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset).nbchan);
 
-% #### 3: Features selection
-[bestMat, ~, ann_net] = featureSelection( mat_features, 20, size(mat_features, 2), ...
-        200, k, 40, nb_trials_training, ex_events, 0.8, 0.1, classifier);
-    
-% #### X: Apply k-NN
-disp(['###################### Final accuracy ############################']);
-[predictions, accuracy, ~] = classifiers(classifier, bestMat, ex_events,...
-    nb_trials_training, alleeg(nb_dataset).trials, k, ann_net);
+% Randomly shuffle mat_features
+ordering = randperm(length(ex_events));
+mat_features2 = mat_features(ordering, :);
+ex_events2 = ex_events(ordering);
+
+% #### 4: Features selection
+[bestMat, ~] = featureSelection( mat_features2, size(mat_features2, 2), k,...
+     ex_events2, classifier);
+% geneticAlgorithm(mat_features2, ex_events2, classifier, k);
+% best_feature = geneticAlgorithm(mat_features2, ex_events2, k, classifier);
+
+% #### 5: Apply classifier
+disp('###################### Final accuracy ############################');
+[accuracy, ~, Mdl] = classifiers(classifier, bestMat, ex_events2, k, ann_net);
+predictions = predict(Mdl,bestMat);
+count = 0;
+for i = (1:40)
+    if isequal(predictions(i), ex_events2(i))
+       count = count + 1; 
+    end
+end
+accuracy = count /40
+% disp(['###################### Cross Validation ############################']);
+% rloss = resubLoss(Mdl)
+% cvmdl = crossval(Mdl, 'KFold', 20); %10 folds by default
+% cvmdlloss = kfoldLoss(cvmdl);
+% disp(['Classifier missclassifies approximately ', num2str(cvmdlloss), '%'])
+disp('###################### Confusion Matrix ############################');
+predictions = predict(Mdl,bestMat);
+[C,order] = confusionmat(ex_events2, predictions');
+C
+disp('###################### Proportions ############################');
+nb_zeros = sum(ex_events2(1:length(ex_events2)*0.7) == 0);
+disp(['0: ', num2str(nb_zeros/length(ex_events2)*0.7*100), '%']);
+disp(['1: ', num2str((length(ex_events2)*0.7-nb_zeros)/length(ex_events2)*0.7*100), '%']);
+
 

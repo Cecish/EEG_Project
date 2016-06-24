@@ -20,10 +20,10 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, ...
             [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
             
             %Extract details and approximation coefficients
-            [cD, cA] = extractCoeff(level, c, l, wavelet);
+            [cD, ~] = extractCoeff(level, c, l, wavelet);
 
             %Build features row associated to the current trial (exclude cD{1})
-            row_temp = buildRowFeatures(level, cD, cA);
+            row_temp = buildRowFeatures(level, cD);
 
             row = [row row_temp];
         end
@@ -165,9 +165,8 @@ end
 % Params:
 %   - level: decomposition level of the discrete wavelet transform
 %   - cD: Detail coeffients structure
-%   - cA: Approximation coefficients
 % Return: Row features associated to a specific trial
-function row = buildRowFeatures(level, cD, cA)
+function row = buildRowFeatures(level, cD)
     % Features associated to the detail coefficents
     for j = (2: level)
         rms(j-1) = rootMeanSquare(cD{j}');

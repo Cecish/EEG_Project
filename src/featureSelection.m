@@ -1,15 +1,9 @@
 % Feature selection
 % Params: 
 %   - mat: initial matrix with all the features previously extracted
-%   - pop_size: size of the population for the genetic algorithm
 %   - nb_features: total number of features
-%   - nb_iterations: number of iterations for the genetic algorithm
 %   - k: number of nearest neighbours to consider with the k-NN classifier
-%   - nb_trials: total number of trials
-%   - nb_trials_training: number of trials to consider for the training
 %   - events: known outcome associated to each trial
-%   - crossover_rate: for the crossover operator inside the genetic algorithm
-%   - mutation_rate: for the mutation operator inside the genetic algorithm
 %   - classifier: id of the chosen classifier 
 % Return: 
 %   - res: sub matrix (with a reduced number of features) that led to the
@@ -17,13 +11,21 @@
 %   - best_features: subset of features that led to the best accuracy score
 %   - best_net: trained MLP that led to the best accuracy score (when the MLP 
 %     classifier is chosen)
-function [res, best_features, best_net] = featureSelection( mat, pop_size,...
-        nb_features, nb_iterations, k, nb_trials, nb_trials_training, events,...
-        crossover_rate, mutation_rate, classifier)
+function [res, best_features] = featureSelection( mat, nb_features, k,...
+    events, classifier)
+    
+    % GA parameters
+    pop_size = 20;
+    max_generations = 50;
+    nb_elites = 2;
+    crossover_rate = 0.8;
+    mutation_rate = 0.1;
+    
+    % Parameters initialisation
     best_features = [];
     it = 0;
-    best_fitness = -Inf
-    fitness_evolution = [best_fitness];
+    best_fitness = -Inf;
+    fitness_evolution = best_fitness;
         
     % Randomness using seed
     %rand('state',sum(100*clock));
@@ -32,23 +34,25 @@ function [res, best_features, best_net] = featureSelection( mat, pop_size,...
     pop = popInit(pop_size, nb_features);
         
     %Loop until the termination condition is reached
-    while ((it < nb_iterations) & (best_fitness < 100.00))
+    while ((it < max_generations) && (best_fitness < 100.00))
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Evaluate the fitness of each chromosome in the population
-        [fitness_array, net_array] = evalPop(mat, pop, pop_size, ...
-            nb_features, events, nb_trials_training, nb_trials, k, classifier);
+        fitness_array = evalPop(mat, pop, pop_size, ...
+            nb_features, events, k, classifier);
 
         % Sort the population by fitness and record the best fitness of the generation
-        [pop, fitness_evolution, best_fitness, best_features, best_net] = ...
+        [pop, fitness_evolution, best_fitness, best_features, fitness_array] = ...
             sortRecord(pop, fitness_array, fitness_evolution, ...
-            best_fitness, best_features, net_array);
+            best_fitness, best_features);
 
         % ####2: Create a new population
         pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
-            fitness_array, nb_features);
+            fitness_array, nb_features, nb_elites);
         
         it = it + 1; % Increment
+        display(['Iteration: ',num2str(it),': Best fitness = ', ...
+            num2str(fitness_evolution(it))]);
     end
     
     %Save the fitness evolution in a file
@@ -58,6 +62,12 @@ function [res, best_features, best_net] = featureSelection( mat, pop_size,...
     
     %Build matrix with the best features
     res = buildSubMat(mat, best_features, nb_features);
+    
+    figure
+    plot(1:it, fitness_evolution(2:end))
+    title('Best fitness evolution over the generations')
+    xlabel('Generations')
+    ylabel('Fitness, Accuracy')
 end
 
 
@@ -101,7 +111,7 @@ end
 %        population of size 200)
 %   - fitness_array
 % Return: the two parents (chromosomes) selected
-function [parent1, parent2] = selection(pop, pop_size, nb, fitness_array)
+function [parent1, parent2] = tournamentSelection(pop, pop_size, nb, fitness_array)
     
     %Select nb random individuals in the population
     random2 = Inf;
@@ -194,19 +204,10 @@ end
 %   - length: length of the chromosome
 % Return: the mutated chromosome
 function chromosome = mutation(chromosome, rate, length)
-    nb_to_mutate = (length * rate); %Number of genes to mutate
     
-    for i = (1: nb_to_mutate)
-        %Select genes to mutate randomly
-        temp = rand() * (length-1) + 1; 
-        rand_pos_m = round(temp);
-        
-        % Flips gene value from 1 to 0
-        if isequal(chromosome(rand_pos_m),1)
-            chromosome(rand_pos_m) = 0;
-        % Flips gene value from 0 to 1
-        else    
-            chromosome(rand_pos_m) = 1;
+    for i = (1: length)
+        if(rand() <= rate)
+           chromosome(i) = 1-chromosome(i); 
         end
     end
 end
@@ -231,26 +232,26 @@ end
 %   - pop_size: size of the population
 %   - nb_features: number of features for each chromosomes
 %   - events: events associated to each row of mat
-%   - nb_trials_training: number of trials that constitute the "training" 
-%       dataset for the k-NN
-%   - nb_trials: total number of trials
 %   - k: number of neighbours to consider for the k-NN
 %   - classifier: identification of the chosen classifier
 % Return: a fitness array where each value corresponds to the fitness of
 % each chromosome of the population + trained ANNs array if the chosen classifier
 % is the Multi-Layer Perceptron
-function [fitness_array, net_array] = evalPop(mat, pop, pop_size, ...
-    nb_features, events, nb_trials_training, nb_trials, k, classifier)
+function fitness_array = evalPop(mat, pop, pop_size, ...
+    nb_features, events, k, classifier)
 
     for i = (1: pop_size)
         %Build new mat according to features selected
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
-        [~, accuracy, net] = classifiers(classifier, new_mat, events,...
-            nb_trials_training, nb_trials, k, 0);
-        
+%         disp('-------------------')
+        accuracy = classifiers(classifier, new_mat, events, k);
+%         accuracy
+%         [accuracy, net] = classifiers(classifier, new_mat, events, k, 0);
+%         accuracy
+%         disp('-------------------')
         fitness_array(i) = accuracy;
-        net_array{i} = net;
+%         net_array{i} = net;
     end
 end
 
@@ -270,24 +271,32 @@ end
 %   - (updated) best fitness
 %   - best_features: best individual of the population
 %   - best trained ANN per generation (if the MLP is the chosen clasifier)
-function [pop, fitness_evolution, best_fitness, best_features, best_net] = ...
+function [pop, fitness_evolution, best_fitness, best_features, fitness_array] = ...
     sortRecord(pop, fitness_array, fitness_evolution, best_fitness, ...
-    best_features, net_array)
-    
-    pop = [pop fitness_array'];
-    
-    [~, idx] = sort(pop(:, size(pop, 2)), 'descend');
-    
-    pop = pop(idx, :);
-    best_net = net_array{idx};    
-    
-    if (pop(1, size(pop, 2)) > best_fitness)
-        best_fitness = pop(1, size(pop, 2));
-        best_features =  pop(1, 1:size(pop, 2)-1);
+    best_features)
+
+    [fitness_array, sorted_idx] = sort(fitness_array, 'descend');
+    pop = pop(sorted_idx, :);
+    if (fitness_array(1) > best_fitness)
+        best_features =  pop(1, :);
     end
-    
+    best_fitness = max(fitness_array(1), best_fitness);
     fitness_evolution = [fitness_evolution best_fitness];
-    pop = pop(:, 1 : size(pop, 2)-1);
+    
+%     pop = [pop fitness_array'];
+%     
+%     [~, idx] = sort(pop(:, size(pop, 2)), 'descend');
+%     
+%     pop = pop(idx, :); 
+%     
+%     if (pop(1, size(pop, 2)) > best_fitness)
+%         best_fitness = pop(1, size(pop, 2));
+%         best_features =  pop(1, 1:size(pop, 2)-1);
+%     end
+%     
+%     fitness_evolution = [fitness_evolution best_fitness];
+%     fitness_array = pop(:, size(pop, 2));
+%     pop = pop(:, 1 : size(pop, 2)-1);
 end
         
 
@@ -299,43 +308,56 @@ end
 %   - mutation_rate 
 %   - fitness_array
 %   - nb_features
+%   - nb_elites
 % Return: new population
 function pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
-            fitness_array, nb_features)
-    
-    % N best individuals to directly copy/paste in the new generation    
-    delimiter_unchanged = round(pop_size * (1-crossover_rate));
-    
-    % For each individual
-    for i = (1: pop_size)
-        %Directly copy/paste
-        if (i<= delimiter_unchanged)
-            new_pop(i, :) = pop(i, :);
-
-        else
-            % 2.1 Selection: tournament selection
-            [parent1, parent2] = selection(pop, pop_size, 4, fitness_array);
-        
-            % 2.2 Crossover (one point)
-            %[child1, child2] = onePointCrossover(parent1, parent2, nb_features);
-            [child1, child2] = twoPointCrossover(parent1, parent2, nb_features);
-
-            % 2.3 Mutation
-            child1 = mutation(child1, mutation_rate, nb_features);
-            child2 = mutation(child2, mutation_rate, nb_features);
-               
-            new_pop(i, :) = child1;
-            new_pop(i+1, :) = child2;
-        end
+            fitness_array, nb_features, nb_elites)
+    new_pop = zeros(pop_size, nb_features);
+    %Elitism
+    for j = (1: nb_elites)
+        new_pop(j, :) = pop(j, :);
     end
     
-    % Ensuring that the sizes of the new_population and the old population
-    % are the same
-    while (size(new_pop, 1) > pop_size)
-        new_pop = new_pop(1:size(new_pop, 1)-1, :); 
+    % For each individual
+    i = nb_elites+1;
+    while (i < pop_size)
+        % 2.1 Selection: tournament selection
+        %[parent1, parent2] = tournamentSelection(pop, pop_size, 4, fitness_array);
+        [parent1, parent2] = rouletteWheelSelection(pop, fitness_array, fitness_array(end));
+        
+        % 2.2 Crossover (one point)
+        child1 = parent1;
+        child2 = parent2;
+        if (rand()<=crossover_rate)
+            [child1, child2] = onePointCrossover(parent1, parent2, nb_features);
+            %[child1, child2] = twoPointCrossover(parent1, parent2, nb_features);
+        end
+
+        % 2.3 Mutation
+        child1 = mutation(child1, mutation_rate, nb_features);
+        child2 = mutation(child2, mutation_rate, nb_features);
+        
+        new_pop(i, :) = child1;
+        new_pop(i+1, :) = child2;
+        i = i + 2;
     end
     
     %Update the population
     pop = new_pop;    
+end
+
+
+function [chromosome1, chromosome2] = rouletteWheelSelection(pop, fitnesses, worst_fitness)
+    P = fitnesses/worst_fitness;
+    P = P/sum(P);
+    
+    id1 = RouletteWheelSelection(P);
+    id2 = id1;
+    while (isequal(id1, id2))
+        id2 = RouletteWheelSelection(P);
+    end
+    
+    chromosome1 = pop(id1, :);
+    chromosome2 = pop(id2, :);
 end
    

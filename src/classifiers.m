@@ -6,22 +6,17 @@
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
 %   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider for the kNN
-%   - net0: previously trained MLP or (0 if not)
-% Return: predictions made and accuracy score (+ trained ANN if the chosen
-% classifier is the Multi-Layer Perceptron)
-function [ predictions, accuracy, net ] = classifiers( id, final_mat_X, ...
-    ex_events_Y, nb_trials, tot_trials, k, net0)
-    net = 0;
+% Return: accuracy score (+ trained ANN if the chosen classifier is the
+% Multi-Layer Perceptron) + classifier model
+function accuracy = classifiers( id, final_mat_X, ex_events_Y, k)
+
     switch id
         case 1 %kNN
-            [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
-                nb_trials, tot_trials, k );
+            accuracy = kNN_func( final_mat_X, ex_events_Y, k );
         case 2 %SVM
-            [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
-                nb_trials, tot_trials );
+            accuracy = SVM_func( final_mat_X, ex_events_Y );
         case 3 %MLP
-            [predictions, accuracy, net] = MLP_func( final_mat_X, ex_events_Y, ...
-                nb_trials, tot_trials, net0 );
+            accuracy = MLP_func( final_mat_X, ex_events_Y );
         otherwise
             error('Wrong classifier identifier: %d', id);
     end
@@ -34,29 +29,16 @@ end
 %   - ex_events_Y: target field associated to each row of data
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
 %   - tot_trials: total number of events
-% Return: predictions made and accuracy score
-function [predictions, accuracy] = SVM_func( final_mat_X, ex_events_Y, ...
-    nb_trials, tot_trials )
+% Return: accuracy score + classifier model
+function accuracy = SVM_func( final_mat_X, ex_events_Y )
 
-    % #### 1: Min-Max normalisation
-    width = size(final_mat_X, 2); %14, 24
-    height = size(final_mat_X, 1);   %3280, 560
-    manipFuns = dataManipFunctions; 
+    %Cross Validation with the SVM classifier
+    svmStruct = fitcsvm(final_mat_X, ex_events_Y);
     
-    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+    CVSVMMdl = crossval(svmStruct, 'KFold', 40);
+    kloss = kfoldLoss(CVSVMMdl);
+    accuracy = 100 - kloss*100;
     
-    % #### 3: Split data into test train/train dataset
-    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
-        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
-    
-    %Train SVM
-    svmStruct = svmtrain(training_dataset, training_Y, 'ShowPlot',false);
-    
-    %Test SVM
-    predictions = svmclassify(svmStruct, testing_dataset, 'ShowPlot', false);
-    
-    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
-        tot_trials-nb_trials);
     disp(['Accuracy = ', num2str(accuracy), '%']);
 end
 
@@ -69,28 +51,14 @@ end
 %   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider
 % Return: predictions made and accuracy score
-function [predictions, accuracy] = kNN_func( final_mat_X, ex_events_Y, ...
-    nb_trials, tot_trials, k )
+function accuracy = kNN_func( final_mat_X, ex_events_Y, k )
 
-    % #### 1: Min-Max normalisation
-    width = size(final_mat_X, 2); %14, 24
-    height = size(final_mat_X, 1);   %3280, 560
-    manipFuns = dataManipFunctions; 
-    
-    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
-    
-    % #### 3: Split data into test train/train dataset
-    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
-        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
+    %Cross Validation with k-NN classifier
+    Mdl = fitcknn(final_mat_X, ex_events_Y, 'NumNeighbors', k);
+    CVMdl = crossval(Mdl, 'KFold', 40);
+    kloss = kfoldLoss(CVMdl);
+    accuracy = 100 - kloss*100;
 
-    %Train kNN
-    Mdl = fitcknn(training_dataset, training_Y, 'NumNeighbors',k);
-    
-    %Test kNN
-    predictions = predict(Mdl, testing_dataset);
-    
-    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
-        tot_trials-nb_trials);
     disp(['Accuracy = ', num2str(accuracy), '%']);
 end
 
@@ -99,67 +67,38 @@ end
 % Params: 
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
-%   - tot_trials: total number of events
-% Return: predictions made and accuracy score + trained ANN
-function [predictions, accuracy, net] = MLP_func( final_mat_X, ex_events, ...
-    nb_trials, tot_trials, net)
-
-    % #### 1: Min-Max normalisation
-    width = size(final_mat_X, 2);
-    height = size(final_mat_X, 1);
-    manipFuns = dataManipFunctions; 
+% Return: accuracy score + trained ANN model
+function accuracy = MLP_func( final_mat_X, ex_events)
+    manipFuns = dataManipFunctions;
     
-    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
-    
-    if isequal(net, 0)
-        % Choose a Training Function
-        % For a list of all training functions type: help nntrain
-        % 'trainlm' is usually fastest.
-        % 'trainbr' takes longer but may be better for challenging problems.
-        % 'trainscg' uses less memory. Suitable in low memory situations.
-        trainFcn = 'trainbr'; %'trainscg';  % Scaled conjugate gradient backpropagation.
-
-        % Create a Pattern Recognition Network
-        hiddenLayerSize = 10;
-        net = patternnet(hiddenLayerSize);
-        net.numLayers = 3;
-        %net.trainFcn = trainFcn;
-        net.trainParam.showWindow = false;
-        net.trainParam.showCommandLine = false; 
-
-        % Setup Division of Data for Training, Validation, Testing
-        net.divideParam.trainRatio = 70/100;
-        net.divideParam.valRatio = 15/100;
-        net.divideParam.testRatio = 15/100;
+    k = 10; %k-folds for the cross-validation
+    error = 0;
+        
+    for i = (1:k)
+       display(['-------- Fold n°' , num2str(i), '--------'])
+        
+        %Define Multi-Layer Perceptron (creation + initialisation)
+        testing_id = (i-1)*(40/k)+1:(i-1)*(40/k)+(40/k);
+        training_id = setdiff(1: size(final_mat_X, 1),testing_id);
+        net1 = newff(final_mat_X', ex_events, [10 10 10]);
+        net1.divideFcn = 'divideind'; % Divide data by indices (i.e. not randomly)
+        net1.divideParam.trainInd = training_id;
+        net1.divideParam.valInd = [];
+        net1.divideParam.testInd = testing_id;
 
         % Train the Network
-        [net,tr] = train(net, minmax_X', ex_events);
+        [net, tr] = train(net1, final_mat_X', ex_events);
+
+%       y = sim(net, final_mat_X');
+%       min(tr.tperf)
+        error = error + min(tr.tperf);
     end
+    accuracy = 100 - error;
     
     % Test the Network
-    y = net(minmax_X');
-    predictions = decisionOutcome(y, tot_trials);
-    
-    accuracy = manipFuns.calculateAccuracy(predictions, ex_events, ...
-        tot_trials-nb_trials);
+%       y = sim(net, final_mat_X');
+%      accuracy = 100 - immse(ex_events, y);
     disp(['Accuracy = ', num2str(accuracy), '%']);
-end
-
-
-% Transforming the outcome approximation into binary numbers
-% Parameters:
-%   - y: array of outcome approximations
-%   - length: length of the array y
-% Return: array of binary outcome
-function predictions = decisionOutcome(y, length)
-    for i = (1: length)
-       if (y(i) < 0.5)
-           predictions(i) = 0;
-       else
-           predictions(i) = 1;
-       end
-    end
 end
 
 
@@ -172,36 +111,36 @@ end
 %   - tot_trials: number of trials when acquiring the data
 %   - k: number of neighbours to consider
 % Retun : accuracy score and predictions made
-function [predictions, accuracy] = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
-
-    % #### 1: Min-Max normalisation
-    width = size(final_mat_X, 2); %14, 24
-    height = size(final_mat_X, 1);   %3280, 560
-    manipFuns = dataManipFunctions;
-    minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
- 
-    % #### 2: Randomly shuffle trials in final_mat_X and ex_events_Y
-    %[X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
-    
-    % #### 3: Split data into test train/train dataset
-    [training_dataset, testing_dataset, training_Y, testing_Y] = ...
-        manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
-    %[training_dataset, testing_dataset, training_Y, testing_Y] = ...
-    %    manipFuns.splitXY(X, Y, nb_trials, tot_trials);
-
-    dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
-    
-    % #### 4: Apply kNN on test set with train set as reference
-    predictions = aux_knn(training_dataset, testing_dataset, k, training_Y);
-    accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
-        tot_trials - nb_trials);
-    disp(['Accuracy with ', num2str(k), '-NN = ', num2str(accuracy), '%']);
-    
-    % Proportion
-    %zero_y = sum(ex_events_Y ~= 0)/height*100;
-    zero_y = sum(testing_Y ~= 0)/(tot_trials - nb_trials)*100;
-    %disp(['1 = ', num2str(zero_y), '% and 0 = ', num2str(100-zero_y), '%']);
-end
+% function [predictions, accuracy] = kNN( final_mat_X, ex_events_Y, nb_trials, tot_trials, k )
+% 
+%     % #### 1: Min-Max normalisation
+%     width = size(final_mat_X, 2); %14, 24
+%     height = size(final_mat_X, 1);   %3280, 560
+%     manipFuns = dataManipFunctions;
+%     minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
+%  
+%     % #### 2: Randomly shuffle trials in final_mat_X and ex_events_Y
+%     %[X, Y] = randomShuffle(minmax_X, ex_events_Y, tot_trials);
+%     
+%     % #### 3: Split data into test train/train dataset
+%     [training_dataset, testing_dataset, training_Y, testing_Y] = ...
+%         manipFuns.splitXY(minmax_X, ex_events_Y, nb_trials, tot_trials);
+%     %[training_dataset, testing_dataset, training_Y, testing_Y] = ...
+%     %    manipFuns.splitXY(X, Y, nb_trials, tot_trials);
+% 
+%     dlmwrite('enormetest2.txt', [final_mat_X ex_events_Y'], 'delimiter', ',');
+%     
+%     % #### 4: Apply kNN on test set with train set as reference
+%     predictions = aux_knn(training_dataset, testing_dataset, k, training_Y);
+%     accuracy = manipFuns.calculateAccuracy(predictions, testing_Y, ...
+%         tot_trials - nb_trials);
+%     disp(['Accuracy with ', num2str(k), '-NN = ', num2str(accuracy), '%']);
+%     
+%     % Proportion
+%     %zero_y = sum(ex_events_Y ~= 0)/height*100;
+%     zero_y = sum(testing_Y ~= 0)/(tot_trials - nb_trials)*100;
+%     %disp(['1 = ', num2str(zero_y), '% and 0 = ', num2str(100-zero_y), '%']);
+% end
 
 
 % Randomly shuffle the dataset by trials
@@ -212,15 +151,15 @@ end
 % Return:
 %   X: data matrix shuffled
 %   Y: events array shuffled accordingle
-function [X, Y] = randomShuffle(final_mat_X, ex_events, tot_trials)
-    
-    %Randomly decide on the new trials order
-    ordered_trials = [1:tot_trials];
-    shuffled_trials = ordered_trials(randperm(length(ordered_trials)));
-    
-    %Update (final_mat_X, ex_events) accordingly in (X, Y)
-    [X, Y] = updateShuffle(final_mat_X, ex_events, tot_trials, shuffled_trials);
-end
+% function [X, Y] = randomShuffle(final_mat_X, ex_events, tot_trials)
+%     
+%     %Randomly decide on the new trials order
+%     ordered_trials = [1:tot_trials];
+%     shuffled_trials = ordered_trials(randperm(length(ordered_trials)));
+%     
+%     %Update (final_mat_X, ex_events) accordingly in (X, Y)
+%     [X, Y] = updateShuffle(final_mat_X, ex_events, tot_trials, shuffled_trials);
+% end
 
 
 % Auxiliary function to randomShuffle that given a new order od trials will
@@ -233,25 +172,25 @@ end
 % Return: 
 %   - X: shuffled data matrix
 %   - Y: suffled events array
-function [X, Y] = updateShuffle(mat_X, events, tot_trials, shuffled_trials)
-
-    my_length = 0;
-    nb_records_per_trial = size(mat_X, 1)/tot_trials;
-    X = [];
-    Y = [];
-    
-    while ~isequal(my_length, tot_trials)
-        pos_i = ((shuffled_trials(my_length+1)-1) * nb_records_per_trial) + 1;
-        
-        temp = mat_X((pos_i : pos_i + nb_records_per_trial - 1), :);
-        X = vertcat(X, temp);
-        
-        tempY = events(pos_i : pos_i + nb_records_per_trial - 1);
-        Y = vertcat(Y, tempY');
-        
-        my_length = my_length + 1;
-    end
-end
+% function [X, Y] = updateShuffle(mat_X, events, tot_trials, shuffled_trials)
+% 
+%     my_length = 0;
+%     nb_records_per_trial = size(mat_X, 1)/tot_trials;
+%     X = [];
+%     Y = [];
+%     
+%     while ~isequal(my_length, tot_trials)
+%         pos_i = ((shuffled_trials(my_length+1)-1) * nb_records_per_trial) + 1;
+%         
+%         temp = mat_X((pos_i : pos_i + nb_records_per_trial - 1), :);
+%         X = vertcat(X, temp);
+%         
+%         tempY = events(pos_i : pos_i + nb_records_per_trial - 1);
+%         Y = vertcat(Y, tempY');
+%         
+%         my_length = my_length + 1;
+%     end
+% end
 
 
 % Extract the k nearest neighbours to a test instance
@@ -261,19 +200,19 @@ end
 %   - k: number of neighbours to consider 
 % Return: k rows() in the training set that are(is) the closest to the test
 % instance according to the euclidian distance
-function neighbours = getNeighbours(training_set, test_instance, k)
-
-    for x = (1:size(training_set, 1))
-		distances(x, :) = [sqrt(sum((test_instance - training_set(x, :))...
-            .^ 2)) training_set(x, :)];
-    end
-    
-	distances = sortrows(distances,1);
-	neighbours = [];
-	for x = (1:k)
-		neighbours(x, :) = distances(x, 2:size(distances, 2));
-    end
-end
+% function neighbours = getNeighbours(training_set, test_instance, k)
+% 
+%     for x = (1:size(training_set, 1))
+% 		distances(x, :) = [sqrt(sum((test_instance - training_set(x, :))...
+%             .^ 2)) training_set(x, :)];
+%     end
+%     
+% 	distances = sortrows(distances,1);
+% 	neighbours = [];
+% 	for x = (1:k)
+% 		neighbours(x, :) = distances(x, 2:size(distances, 2));
+%     end
+% end
 
 
 % Calculate the accuracy score
@@ -283,29 +222,149 @@ end
 %   - k: number of nearest neighbours considered
 %   - training_Y: events associated to the training data
 % Return: class predictions
-function predictions = aux_knn(training_dataset, testing_dataset, k, training_Y)
-    temp = 0.0;
-        
-    for i = (1: size(testing_dataset, 1))
-        neighbours = getNeighbours(training_dataset, testing_dataset(i, :), k);
-        
-        % Get the index of each neighbours extracted in the training dataset
-        for j = (1:k)
-            idx(j) = find(ismember(training_dataset, neighbours(j, :)),1);
-        end
-        
-        % Get the number of 1- events associated to the neighbours
-        nb_1 = sum(training_Y(idx) ~= 0);
-        % Decide of the state of the current test instance by taking the
-        % mean of each neighbours' events
-        if ((nb_1/length(idx)*100) > 50)
-            state = 1.0;
-        else
-            state = 0.0;
-        end
-        
-        predictions(i) = state;
-    end
-end
+% function predictions = aux_knn(training_dataset, testing_dataset, k, training_Y)
+%     temp = 0.0;
+%         
+%     for i = (1: size(testing_dataset, 1))
+%         neighbours = getNeighbours(training_dataset, testing_dataset(i, :), k);
+%         
+%         % Get the index of each neighbours extracted in the training dataset
+%         for j = (1:k)
+%             idx(j) = find(ismember(training_dataset, neighbours(j, :)),1);
+%         end
+%         
+%         % Get the number of 1- events associated to the neighbours
+%         nb_1 = sum(training_Y(idx) ~= 0);
+%         % Decide of the state of the current test instance by taking the
+%         % mean of each neighbours' events
+%         if ((nb_1/length(idx)*100) > 50)
+%             state = 1.0;
+%         else
+%             state = 0.0;
+%         end
+%         
+%         predictions(i) = state;
+%     end
+% end
 
 
+% function [accuracy, net] = CV_test( dataset, net, k)
+%     count = 0;
+%     
+%     %1. Divide the data into k non-overlapping folds
+%     %class 0
+%     struct_folds1 = selectClass(dataset, k/2, 0);
+%     %lass 1
+%     struct_folds2 = selectClass(dataset, k/2, 1);
+%     %Random order for the k folds
+%     ordering = randperm(size(dataset, 1)); %4
+%     temp = [struct_folds1'; struct_folds2'];
+%     %struct_folds = shuffleFolds(temp, ordering, k);
+%     % Transform temp struct in matrix because so much easy to manipulate
+%     idx = 1;
+%     for p = (1: k) %10 folds
+%         for r = (1: 4)
+%            temp2(idx, :) = temp{p}(r, :);
+%            idx = idx + 1;
+%         end
+%     end
+% 
+%     temp_mat = temp2(ordering, :);
+%     %Deconstruct in struct folds
+%     for pp = (1: k)
+%         struct_folds{pp} = temp_mat((pp-1)*4+1: (pp-1)*4 + 4, :);
+%     end
+%     
+%     % Create a Pattern Recognition Network
+%     hiddenLayerSize = 10;
+%     net = patternnet(hiddenLayerSize);
+%     net.numLayers = 3;
+%     net.trainParam.showWindow = false;
+%     net.trainParam.showCommandLine = false; 
+%     net
+%     
+%     %For each fold
+%     for i = (1: k)
+%         training_set = buildTrainingSet(struct_folds, i);
+%         idx = 1;
+%         for p = (1: 9) %10 folds
+%             for r = (1: 4)
+%                training_set2(idx, :) = training_set{p}(r, :);
+%                idx = idx + 1;
+%             end
+%         end
+% 
+%         % Setup Division of Data for Training, Testing
+%         net.divideParam.trainRatio = 70/100;
+%         %net.divideParam.valRatio = 15/100;
+%         net.divideParam.testRatio = 30/100;
+% 
+%         % Train the Network
+%         [net,tr] = train(net, training_set2(:, 1:size(training_set2, 2)-1)', training_set2(:, size(training_set2, 2))');
+%         
+%         % Test the classier on all the examples in Fold i
+%         y = net(struct_folds{i}(:, 1: size(struct_folds{i}, 2)-1)');
+%         %predictions = decisionOutcome(y, length(y));
+%               
+%         % Number of records wrongly classified in Fold i
+%         mse = 0;
+%         outcome = struct_folds{i}(:, size(struct_folds{i}, 2));
+%         for z = 1: length(y)
+%             mse = mse + (y(z) - struct_folds{i}(z, size(struct_folds{i}, 2)))^2;
+%         end
+%         res = mse/length(y);
+%     end
+%     accuracy = res/40;
+% end
+
+% function training_set = buildTrainingSet(struct_folds, id)
+%     training_set = [];
+%     
+%     for i = (1: 10)
+%         if ~isequal(i, id)
+%            training_set = [training_set; struct_folds(i)]; 
+%         end
+%     end
+% end
+
+% function struct_folds = shuffleFolds(my_struct, ordering, k)
+%     count = 0;
+%     idx = 1;
+%     
+%     for i = (1: length(ordering))
+%        count = count +1;
+%        if isequal(count,  5)
+%            idx = idx + 1;
+%            count = 1;
+%        end
+%        disp([num2str(idx), ' - ', num2str(count), ' - ', num2str(round(ordering(i)/(40/k))+1), ' - ', num2str(mod(ordering(i), 40/k)+1)]);
+%        struct_folds{idx}(count, :) = my_struct{round(ordering(i)/(40/k))+1}(mod(ordering(i), 40/k)+1, :); 
+%     end
+% end
+
+
+% Select a specific number of rows of a specific class
+% Params:
+%   - dataset: (data + target field as last column)
+%   - k: number of folds/2
+%   - class_id: either 1 or 0 (correct hand or not)
+% Return:
+%   - struct_folds: k-folds structure
+% function struct_folds = selectClass(dataset, k, class_id)
+% 
+%     % Select rows with the right target field
+%     indices = dataset(:, size(dataset, 2)) == class_id;
+%     sub_dataset = dataset(indices, :);
+% 
+%     % Random orders
+%     orders = randperm(size(sub_dataset, 1));
+% 
+%     % Build sub matrix of selected rows & Update initial dataset
+%     for i = (1: k)
+%         my_temp = [];
+%         for z = ((i-1)*(4)+1: (i-1)*(4)+4)
+%             my_temp(z - (i-1)*(4), :) = sub_dataset(orders(z), :);
+%         end
+%         struct_folds{i} = my_temp;
+%     end
+% end

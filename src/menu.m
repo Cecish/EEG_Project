@@ -7,7 +7,6 @@
 %   - level: For the discrete wavelet wavelet transform
 %   - wavelet: For the discrete wavelet wavelet transform
 %   - classifier
-%   - device (1: EPOC, 2: actiCAP)
 function [ hand, k, path_data_file, name_data_file, level, wavelet,...
     classifier, device ] = menu()
     k = 0;
@@ -16,11 +15,12 @@ function [ hand, k, path_data_file, name_data_file, level, wavelet,...
     disp(['|                        Parameters                        |']);
     disp([' ---------------------------------------------------------- ']);
     hand = str2num(input('Rehabilitation on the\n1. right hand\n2. left hand\n','s')); 
-    device = str2num(input('Which device are you using?\n1. Emotiv EPOC\n2. actiCAP\n','s')); 
     path_data_file = input(strcat('Path of the raw EEG data file?', ... 
-        '(H:\\MasterProject\\RawEEGData\\actiCAP\\SAL01\\Online\\)\n'),'s'); 
+        ...%'(H:\\MasterProject\\RawEEGData\\actiCAP\\SAL01\\Online\\)\n'),'s'); 
+        '(H:\\MasterProject\\RawEEGData\\EPOC\\No_Glove\\MV\\Online\\)\n'),'s'); 
     name_data_file = input(strcat('Name of the raw EEG data file? ', ...
-        ' (motor-imagery-csp-4-online-[2015.11.01-11.54.07].vhdr)\n'), 's');
+        ...%' (motor-imagery-csp-4-online-[2015.11.01-11.54.07].vhdr)\n'), 's');
+        ' (motor-imagery-csp-4-online-[2016.06.08-18.53.09].vhdr)\n'), 's');
     classifier = str2num(input(strcat('Which classifier?\n 1. kNN\n 2.', ...
         ' SVM\n 3. Multi-Layer Perceptron\n'), 's'));
     % Extra parameter for the k-NN classifier

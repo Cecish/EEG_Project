@@ -4,6 +4,7 @@ function funs = dataManipFunctions
     funs.MinMaxNorm = @MinMaxNorm; %Min-max normalisation
     funs.splitXY = @splitXY; %split data matrix into train and test sub-matrices
     funs.calculateAccuracy = @calculateAccuracy; %Accuracy score calculation
+    funs.featureSelection = @featureSelection; %Choice of the method to use for feature selection
 end
 
 
@@ -107,4 +108,17 @@ function accuracy = calculateAccuracy(predictions, observed, length)
 end
 
 
+function [bestMat, best_feature, ann_net] = featureSelection(mat_features, ...
+    ex_events, k, classifier, selector)
 
+    switch selector
+        
+        case 1 % Genetic algorithm (GA)
+            [bestMat, best_feature, ann_net] = geneticAlgorithm(mat_features, ex_events, k, classifier);
+            
+        case 2 % Particle swarm optimisation (PSO)
+
+        otherwise
+            error('Wrong selection method identifier: %d', selector);
+    end
+end
