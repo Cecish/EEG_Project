@@ -8,11 +8,11 @@
 %   - k: number of nearest neighbours to consider for the kNN
 % Return: accuracy score (+ trained ANN if the chosen classifier is the
 % Multi-Layer Perceptron) + classifier model
-function accuracy = classifiers( id, final_mat_X, ex_events_Y, k)
+function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
 
     switch id
         case 1 %kNN
-            accuracy = kNN_func( final_mat_X, ex_events_Y, k );
+            [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k );
         case 2 %SVM
             accuracy = SVM_func( final_mat_X, ex_events_Y );
         case 3 %MLP
@@ -51,14 +51,14 @@ end
 %   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider
 % Return: predictions made and accuracy score
-function accuracy = kNN_func( final_mat_X, ex_events_Y, k )
+function [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k )
 
     %Cross Validation with k-NN classifier
     Mdl = fitcknn(final_mat_X, ex_events_Y, 'NumNeighbors', k);
     CVMdl = crossval(Mdl, 'KFold', 40);
     kloss = kfoldLoss(CVMdl);
-    accuracy = 100 - kloss*100;
-
+    accuracy = 100*(1 - kloss);
+    
     disp(['Accuracy = ', num2str(accuracy), '%']);
 end
 
@@ -93,7 +93,7 @@ function accuracy = MLP_func( final_mat_X, ex_events)
 %       min(tr.tperf)
         error = error + min(tr.tperf);
     end
-    accuracy = 100 - error;
+    accuracy = (1 - error)*100;
     
     % Test the Network
 %       y = sim(net, final_mat_X');

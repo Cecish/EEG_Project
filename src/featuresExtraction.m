@@ -8,22 +8,30 @@
 % Return: [40 x nb_channels*level*nb_features] matrix, for each event
 function mat_features = featuresExtraction(mat_X, level, nb_events, ...
     wavelet, nb_channels)
+
+    ar_order = 6; %Recommended value, as seen in the litterature
+    length_block = size(mat_X,1)/40; %number of records for one trial (40 trials in total)
     
     % For each trial/event
     for i = (1: nb_events)
-        temp = ((i-1)*82 +1);
+%         temp = ((i-1)*82 +1);
+        temp = ((i-1)*length_block +1);
         row = [];
 
         %For each channel
         for k = (1: nb_channels)
-            % Discrete wavelet transform
-            [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
+            % 1. #### Discrete wavelet transform ####
+            [c,l] = wavedec(mat_X(temp:temp+length_block-1,k),level, wavelet);
+%             [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
             
             %Extract details and approximation coefficients
             [cD, ~] = extractCoeff(level, c, l, wavelet);
-
+            
+            % 2. #### Auto-regressive model (AR) ####
+            ar_res = ar(mat_X(temp:temp+length_block-1,k), ar_order);
+            
             %Build features row associated to the current trial (exclude cD{1})
-            row_temp = buildRowFeatures(level, cD);
+            row_temp = buildRowFeatures(level, cD, ar_res.A(2:end));
 
             row = [row row_temp];
         end
@@ -165,8 +173,9 @@ end
 % Params:
 %   - level: decomposition level of the discrete wavelet transform
 %   - cD: Detail coeffients structure
+%   - AR coefficients
 % Return: Row features associated to a specific trial
-function row = buildRowFeatures(level, cD)
+function row = buildRowFeatures(level, cD, ar_coeffs)
     % Features associated to the detail coefficents
     for j = (2: level)
         rms(j-1) = rootMeanSquare(cD{j}');
@@ -181,5 +190,5 @@ function row = buildRowFeatures(level, cD)
         stdVal(j-1) = std(cD{j}');
     end
     
-    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal];
+    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs];
 end

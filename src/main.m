@@ -43,34 +43,31 @@ mat_features2 = mat_features(ordering, :);
 ex_events2 = ex_events(ordering);
 
 % #### 4: Features selection
-[bestMat, ~] = featureSelection( mat_features2, size(mat_features2, 2), k,...
+[bestMat, best_features] = featureSelection( mat_features2, size(mat_features2, 2), k,...
      ex_events2, classifier);
 % geneticAlgorithm(mat_features2, ex_events2, classifier, k);
 % best_feature = geneticAlgorithm(mat_features2, ex_events2, k, classifier);
 
 % #### 5: Apply classifier
-disp('###################### Final accuracy ############################');
-[accuracy, ~, Mdl] = classifiers(classifier, bestMat, ex_events2, k, ann_net);
-predictions = predict(Mdl,bestMat);
-count = 0;
-for i = (1:40)
-    if isequal(predictions(i), ex_events2(i))
-       count = count + 1; 
-    end
-end
-accuracy = count /40
-% disp(['###################### Cross Validation ############################']);
-% rloss = resubLoss(Mdl)
-% cvmdl = crossval(Mdl, 'KFold', 20); %10 folds by default
-% cvmdlloss = kfoldLoss(cvmdl);
-% disp(['Classifier missclassifies approximately ', num2str(cvmdlloss), '%'])
+disp('######### Final accuracy with k-folds cross validation ##############');
+[accuracy, CVMdl] = classifiers(classifier, bestMat, ex_events2, k);
+
 disp('###################### Confusion Matrix ############################');
-predictions = predict(Mdl,bestMat);
+predictions = CVMdl.kfoldPredict;
+% figure('Name', 'Confusion Matrix')
 [C,order] = confusionmat(ex_events2, predictions');
 C
+order
+% plotconfusion(ex_events2, predictions');
+
 disp('###################### Proportions ############################');
-nb_zeros = sum(ex_events2(1:length(ex_events2)*0.7) == 0);
-disp(['0: ', num2str(nb_zeros/length(ex_events2)*0.7*100), '%']);
-disp(['1: ', num2str((length(ex_events2)*0.7-nb_zeros)/length(ex_events2)*0.7*100), '%']);
+nb_zeros = sum(ex_events2 == 0);
+disp(['0: ', num2str(nb_zeros/length(ex_events2)*100), '%']);
+disp(['1: ', num2str((length(ex_events2)-nb_zeros)/length(ex_events2)*100), '%']);
+% When I was evaluating my classifiers' performance by dividing the dataset
+% into a training and a testing set (no cross validation method)
+% nb_zeros = sum(ex_events2(1:length(ex_events2)*0.7) == 0);
+% disp(['0: ', num2str(nb_zeros/length(ex_events2)*0.7*100), '%']);
+% disp(['1: ', num2str((length(ex_events2)*0.7-nb_zeros)/length(ex_events2)*0.7*100), '%']);
 
 

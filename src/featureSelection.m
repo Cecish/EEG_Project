@@ -16,7 +16,7 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     
     % GA parameters
     pop_size = 20;
-    max_generations = 50;
+    max_generations = 5;
     nb_elites = 2;
     crossover_rate = 0.8;
     mutation_rate = 0.1;
@@ -63,11 +63,17 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     %Build matrix with the best features
     res = buildSubMat(mat, best_features, nb_features);
     
-    figure
+    figure('Name', 'Fitness (accuracy) evolution over the generations')
     plot(1:it, fitness_evolution(2:end))
     title('Best fitness evolution over the generations')
     xlabel('Generations')
     ylabel('Fitness, Accuracy')
+    
+    figure('Name', 'Features distribution')
+    bar(best_features, 1.2) %Some space added to see the top of the bars (aesthetic purpose)
+    title('Features distribution')
+    xlabel('Features')
+    ylabel('Apparition')
 end
 
 
@@ -196,6 +202,24 @@ function [child1, child2] = twoPointCrossover(parent1, parent2, length)
 end
 
 
+% Uniform crossover. A binary crossove rmask is created. The first child
+% inherits the genes from the first parent every time the mask components are
+% true, and inherits genes from the second parent where the mask's 
+% componenents are false
+% Params: 
+%   - parent1
+%   - parent2
+% Return: 
+%   - child1: of parent1 and parent2 (inheritance of their genes)
+%   - child2: of parent1 and parent2 (inheritance of their genes)
+function [child1, child2] = uniformCrossover(parent1, parent2, length)
+    % Creation of the mask
+    mask = randi([0 1], 1, length);
+    child1=mask.*parent1+(1-mask).*parent2;
+    child2=mask.*parent2+(1-mask).*parent1;
+end
+
+
 % Mutation operator. The chromosome is a binary vector, so the mutation
 % consists in flipping specific genes (1->0 or 0->1)
 % Params: 
@@ -245,7 +269,7 @@ function fitness_array = evalPop(mat, pop, pop_size, ...
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
 %         disp('-------------------')
-        accuracy = classifiers(classifier, new_mat, events, k);
+        [accuracy, ~] = classifiers(classifier, new_mat, events, k);
 %         accuracy
 %         [accuracy, net] = classifiers(classifier, new_mat, events, k, 0);
 %         accuracy
@@ -331,6 +355,7 @@ function pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
         if (rand()<=crossover_rate)
             [child1, child2] = onePointCrossover(parent1, parent2, nb_features);
             %[child1, child2] = twoPointCrossover(parent1, parent2, nb_features);
+            %[child1, child2] = uniformCrossover(parent1, parent2, nb_features);
         end
 
         % 2.3 Mutation
