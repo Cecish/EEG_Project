@@ -5,6 +5,7 @@ function funs = dataManipFunctions
     funs.splitXY = @splitXY; %split data matrix into train and test sub-matrices
     funs.calculateAccuracy = @calculateAccuracy; %Accuracy score calculation
     funs.featureSelection = @featureSelection; %Choice of the method to use for feature selection
+    funs.analysisSelectedFeatures = @analysisSelectedFeatures; %Analysis of the features selected
 end
 
 
@@ -121,4 +122,34 @@ function [bestMat, best_feature, ann_net] = featureSelection(mat_features, ...
         otherwise
             error('Wrong selection method identifier: %d', selector);
     end
+end
+
+
+% Analysis of the best features selected per channel by plotting a stack histogram
+% Params: 
+%   - features: best features selected with a genetic algorithm
+%   - nb_channels: number of channels used for the experiments (EEG data acquisition)
+function analysisSelectedFeatures(features, nb_channels)
+    % Number of different types of features extracted
+    nb_cat_features = 2; %wavelet and AR features
+    nb_features_per_channel = length(features)/nb_channels;
+    
+    %Initialisation of the matrix used for plotting the histogram
+    mat_features = zeros(nb_channels, nb_cat_features);
+    
+    % For each channel
+    for i = (1: nb_channels)
+        %Number of wavelet features selected
+        mat_features(i, 1) = sum(features((i-1)*nb_features_per_channel+1:i*nb_features_per_channel-7) == 1);
+        %Number of AR features selected
+        mat_features(i, 2) = sum(features(i*nb_features_per_channel-6:i*nb_features_per_channel) == 1);
+    end
+    
+    mat_features
+    
+    figure('Name', 'Features distribution')
+    bar(mat_features,'stacked')
+    title('Features distribution')
+%     xlabel('Features')
+%     ylabel('Apparition')
 end

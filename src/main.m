@@ -48,6 +48,9 @@ ex_events2 = ex_events(ordering);
 % geneticAlgorithm(mat_features2, ex_events2, classifier, k);
 % best_feature = geneticAlgorithm(mat_features2, ex_events2, k, classifier);
 
+% #### 4 bis: Analysis of the best features selected
+manipFuns.analysisSelectedFeatures(best_features, width);
+
 % #### 5: Apply classifier
 disp('######### Final accuracy with k-folds cross validation ##############');
 [accuracy, CVMdl] = classifiers(classifier, bestMat, ex_events2, k);

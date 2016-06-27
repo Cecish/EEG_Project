@@ -16,7 +16,7 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     
     % GA parameters
     pop_size = 20;
-    max_generations = 5;
+    max_generations = 100;
     nb_elites = 2;
     crossover_rate = 0.8;
     mutation_rate = 0.1;
@@ -69,11 +69,11 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     xlabel('Generations')
     ylabel('Fitness, Accuracy')
     
-    figure('Name', 'Features distribution')
-    bar(best_features, 1.2) %Some space added to see the top of the bars (aesthetic purpose)
-    title('Features distribution')
-    xlabel('Features')
-    ylabel('Apparition')
+%     figure('Name', 'Features distribution')
+%     bar(best_features, 1.2) %Some space added to see the top of the bars (aesthetic purpose)
+%     title('Features distribution')
+%     xlabel('Features')
+%     ylabel('Apparition')
 end
 
 
