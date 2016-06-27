@@ -16,7 +16,7 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     
     % GA parameters
     pop_size = 20;
-    max_generations = 100;
+    max_generations = 5;
     nb_elites = 2;
     crossover_rate = 0.8;
     mutation_rate = 0.1;

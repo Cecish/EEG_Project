@@ -35,7 +35,7 @@ minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
 
 % #### 3: Features extraction
 mat_features = featuresExtraction(minmax_X, level, ...
-    alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset).nbchan);
+    alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset));
 
 % Randomly shuffle mat_features
 ordering = randperm(length(ex_events));

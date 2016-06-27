@@ -4,10 +4,10 @@
 %   - level: decomposition level of the discrete wavelet transform
 %   - nb_events: number of events/trials
 %   - wavelet
-%   - nb_channels
+%   - eeg variable from EEGLAB
 % Return: [40 x nb_channels*level*nb_features] matrix, for each event
 function mat_features = featuresExtraction(mat_X, level, nb_events, ...
-    wavelet, nb_channels)
+    wavelet, eeg)
 
     ar_order = 6; %Recommended value, as seen in the litterature
     length_block = size(mat_X,1)/40; %number of records for one trial (40 trials in total)
@@ -19,7 +19,7 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, ...
         row = [];
 
         %For each channel
-        for k = (1: nb_channels)
+        for k = (1: eeg.nbchan)
             % 1. #### Discrete wavelet transform ####
             [c,l] = wavedec(mat_X(temp:temp+length_block-1,k),level, wavelet);
 %             [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
@@ -30,15 +30,30 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, ...
             % 2. #### Auto-regressive model (AR) ####
             ar_res = ar(mat_X(temp:temp+length_block-1,k), ar_order);
             
+            % 3. #### Power Spectrum Analysis ####
+            Fs = eeg.srate;           % Sampling frequency
+            L  = eeg.pnts;            % Length of signal
+            NFFT = 2^nextpow2(L);     % Next power of 2 from length of x
+            NOVERLAP = 0;
+            WINDOW = 512;
+            x  = mat_X(temp:temp+length_block-1, k); %Channel k
+            %Matlab pwelch function
+            [spectra,freqs] = pwelch(x,WINDOW,NOVERLAP,NFFT,Fs);
+%             [spectra,freqs] = spectopo(mat_X(temp:temp+length_block-1,k),...
+%                 0, eeg.srate, 'nfft', 1024); %
+   
+            psd_features = extractPowerSpectrumFeatures(spectra, freqs);
+            
             %Build features row associated to the current trial (exclude cD{1})
-            row_temp = buildRowFeatures(level, cD, ar_res.A(2:end));
-
+            row_temp = buildRowFeatures(level, cD, ar_res.A(2:end), psd_features);
+            
             row = [row row_temp];
         end
         % Update the result matrix with the features extracted for the
         % current trial
         mat_features(i, :) = row;
     end
+    
 end
 
 
@@ -174,8 +189,9 @@ end
 %   - level: decomposition level of the discrete wavelet transform
 %   - cD: Detail coeffients structure
 %   - AR coefficients
+%   - Power spectrum analysis features
 % Return: Row features associated to a specific trial
-function row = buildRowFeatures(level, cD, ar_coeffs)
+function row = buildRowFeatures(level, cD, ar_coeffs, psd_features)
     % Features associated to the detail coefficents
     for j = (2: level)
         rms(j-1) = rootMeanSquare(cD{j}');
@@ -190,5 +206,43 @@ function row = buildRowFeatures(level, cD, ar_coeffs)
         stdVal(j-1) = std(cD{j}');
     end
     
-    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs];
+    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs ...
+        psd_features];
+end
+
+
+% Power Spectrum analysis: extraction of features
+% Params: 
+%   - spectra: power spectrum of a specific channel
+%   - freqs: 
+% Return: array of features extracted from the power spectrum analysis
+function psd_features = extractPowerSpectrumFeatures(spectra, freqs)
+        
+    %Extraction of features for the five frequency bands
+    %[2 - 4] Hz
+    band1_idx = find(freqs>=2 & freqs<=4);  
+    band1_power = mean(spectra(band1_idx)); %Mean
+    band1_std = std(spectra(band1_idx)); %Std
+    %Standard deviation
+    %[4 - 8] Hz
+    band2_idx = find(freqs>=4 & freqs<=8);  
+    band2_power = mean(spectra(band2_idx)); %Mean
+    band2_std = std(spectra(band2_idx)); %Std
+    %[8 - 12] Hz
+    band3_idx = find(freqs>=8 & freqs<=12); 
+    band3_power = mean(spectra(band3_idx)); %Mean
+    band3_std = std(spectra(band3_idx)); %Std
+    %[12 - 18] Hz
+    band4_idx = find(freqs>=12 & freqs<=18); 
+    band4_power = mean(spectra(band4_idx)); %Mean
+    band4_std = std(spectra(band4_idx)); %Std
+    %[18 - 30] Hz
+    band5_idx = find(freqs>=18 & freqs<=30);
+    band5_power = mean(spectra(band5_idx)); %Mean
+    band5_std = std(spectra(band5_idx)); %Std
+       
+    %Update res = matrix where each line gathers these extracted
+    %features for a specific channel
+    psd_features = [band1_power band1_std band2_power band2_std band3_power....
+        band3_std band4_power band4_std band5_power band5_std];
 end
