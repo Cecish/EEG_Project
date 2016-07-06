@@ -5,8 +5,11 @@
 %   - nb_events: number of events/trials
 %   - wavelet
 %   - eeg variable from EEGLAB
-% Return: [40 x nb_channels*level*nb_features] matrix, for each event
-function mat_features = featuresExtraction(mat_X, level, nb_events, ...
+% Return: 
+%   - mat_features: [40 x nb_channels*level*nb_features] matrix, for each event
+%   - ratio_cat_feat: number of features extrcated in each category of
+%   features (DWT, AR, PSD, time domain features)
+function [mat_features, ratio_cat_feat] = featuresExtraction(mat_X, level, nb_events, ...
     wavelet, eeg)
 
     ar_order = 6; %Recommended value, as seen in the litterature
@@ -44,8 +47,15 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, ...
    
             psd_features = extractPowerSpectrumFeatures(spectra, freqs);
             
+            % 4. #### Time domain features (with Hjorth parameters) ####
+            mav = meanabs(mat_X(temp:temp+length_block-1,k)); %Mean absolute value
+            mean_val = mean(mat_X(temp:temp+length_block-1,k)); %Mean
+            std_val = std(mat_X(temp:temp+length_block-1,k)); %Standard deviation
+            
             %Build features row associated to the current trial (exclude cD{1})
-            row_temp = buildRowFeatures(level, cD, ar_res.A(2:end), psd_features);
+            td_features = [mav mean_val std_val];
+            row_temp = buildRowFeatures(level, cD, ar_res.A(2:end), ...
+                psd_features, td_features);
             
             row = [row row_temp];
         end
@@ -53,7 +63,7 @@ function mat_features = featuresExtraction(mat_X, level, nb_events, ...
         % current trial
         mat_features(i, :) = row;
     end
-    
+    ratio_cat_feat = [14 ar_order 10 3]; %[DWT AR PSD Time domain features]
 end
 
 
@@ -188,26 +198,34 @@ end
 % Params:
 %   - level: decomposition level of the discrete wavelet transform
 %   - cD: Detail coeffients structure
-%   - AR coefficients
-%   - Power spectrum analysis features
+%   - ar_coeffs: AR coefficients
+%   - psd_features: Power spectrum analysis features
+%   - td_features: Time domain features
 % Return: Row features associated to a specific trial
-function row = buildRowFeatures(level, cD, ar_coeffs, psd_features)
+function row = buildRowFeatures(level, cD, ar_coeffs, psd_features, td_features)
     % Features associated to the detail coefficents
     for j = (2: level)
+        shannon_entropy(j-1) = wentropy(cD{j}', 'shannon');
+        log_energy(j-1) = wentropy(cD{j}', 'log energy');
+        [ey, ~] = energyop(cD{j}', 0); %No plot
+        mean_val1(j-1) = mean(ey);
+        std_val1(j-1) = std(ey);
         rms(j-1) = rootMeanSquare(cD{j}');
         mav(j-1) = meanAbsoluteValue(cD{j}');
         ieeg(j-1) = integratedEEG(cD{j}');
         ssi(j-1) = simpleSquareIntegral(cD{j}');
         var(j-1) = varianceEEG(cD{j}');
         aac(j-1) = averageAmplitudeChange(cD{j}');
-        mini(j-1) = min(cD{j}');
-        maxi(j-1) = max(cD{j}');
-        meanVal(j-1) = mean(cD{j}');
-        stdVal(j-1) = std(cD{j}');
+        mini(j-1) = min(cD{j});
+        maxi(j-1) = max(cD{j});
+        meanVal(j-1) = mean(cD{j});
+        stdVal(j-1) = std(cD{j});
     end
-    
-    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs ...
-        psd_features];
+
+    row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal shannon_entropy...
+        shannon_entropy mean_val1 std_val1 ar_coeffs psd_features td_features];
+%     row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs ...
+%         psd_features td_features];
 end
 
 

@@ -14,7 +14,7 @@ function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
         case 1 %kNN
             [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k );
         case 2 %SVM
-            accuracy = SVM_func( final_mat_X, ex_events_Y );
+            [accuracy, CVMdl] = SVM_func( final_mat_X, ex_events_Y );
         case 3 %MLP
             accuracy = MLP_func( final_mat_X, ex_events_Y );
         otherwise
@@ -30,7 +30,7 @@ end
 %   - nb_trials: number of rows in data to consider as a "training" sub-dataset
 %   - tot_trials: total number of events
 % Return: accuracy score + classifier model
-function accuracy = SVM_func( final_mat_X, ex_events_Y )
+function [accuracy, CVSVMMdl] = SVM_func( final_mat_X, ex_events_Y )
 
     %Cross Validation with the SVM classifier
     svmStruct = fitcsvm(final_mat_X, ex_events_Y);

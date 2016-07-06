@@ -1,3 +1,10 @@
+% Functions are fields of a struct (holder)
+% Return function handles to local functions
+function funs = featureSelection
+    funs.featSelection = @featSelection; %Features selection
+    funs.chanSelection = @chanSelection; %Best channels subset selection
+end
+
 % Feature selection
 % Params: 
 %   - mat: initial matrix with all the features previously extracted
@@ -11,12 +18,12 @@
 %   - best_features: subset of features that led to the best accuracy score
 %   - best_net: trained MLP that led to the best accuracy score (when the MLP 
 %     classifier is chosen)
-function [res, best_features] = featureSelection( mat, nb_features, k,...
+function [res, best_features] = featSelection( mat, nb_features, k,...
     events, classifier)
     
     % GA parameters
     pop_size = 20;
-    max_generations = 5;
+    max_generations = 50;
     nb_elites = 2;
     crossover_rate = 0.8;
     mutation_rate = 0.1;
@@ -26,33 +33,33 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     it = 0;
     best_fitness = -Inf;
     fitness_evolution = best_fitness;
-        
-    % Randomness using seed
-    %rand('state',sum(100*clock));
     
     % Population initialisation
     pop = popInit(pop_size, nb_features);
         
     %Loop until the termination condition is reached
-    while ((it < max_generations) && (best_fitness < 100.00))
+    while ((it < max_generations)) %&& (best_fitness < 100.00))
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Evaluate the fitness of each chromosome in the population
-        fitness_array = evalPop(mat, pop, pop_size, ...
+        fitness_array = evalPop(mat, pop, size(pop, 1), ...
             nb_features, events, k, classifier);
 
         % Sort the population by fitness and record the best fitness of the generation
         [pop, fitness_evolution, best_fitness, best_features, fitness_array] = ...
             sortRecord(pop, fitness_array, fitness_evolution, ...
-            best_fitness, best_features);
+            best_fitness, best_features, pop_size);
+        
+        display(['Iteration: ',num2str(it+1),': Best fitness = ', ...
+            num2str(fitness_evolution(it+1))]);
 
         % ####2: Create a new population
         pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
             fitness_array, nb_features, nb_elites);
         
         it = it + 1; % Increment
-        display(['Iteration: ',num2str(it),': Best fitness = ', ...
-            num2str(fitness_evolution(it))]);
+%         display(['Iteration: ',num2str(it),': Best fitness = ', ...
+%             num2str(fitness_evolution(it))]);
     end
     
     %Save the fitness evolution in a file
@@ -65,6 +72,7 @@ function [res, best_features] = featureSelection( mat, nb_features, k,...
     
     figure('Name', 'Fitness (accuracy) evolution over the generations')
     plot(1:it, fitness_evolution(2:end))
+    grid on;
     title('Best fitness evolution over the generations')
     xlabel('Generations')
     ylabel('Fitness, Accuracy')
@@ -245,6 +253,9 @@ end
 function pop = popInit(pop_size, nb_features)
     for i = (1: pop_size)
         pop(i, :) = createIndividual(nb_features);
+        %Corresponding fitness value
+        
+        %Corresponding accuracy value
     end
 end
 
@@ -268,14 +279,12 @@ function fitness_array = evalPop(mat, pop, pop_size, ...
         %Build new mat according to features selected
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
-%         disp('-------------------')
         [accuracy, ~] = classifiers(classifier, new_mat, events, k);
-%         accuracy
-%         [accuracy, net] = classifiers(classifier, new_mat, events, k, 0);
-%         accuracy
-%         disp('-------------------')
-        fitness_array(i) = accuracy;
-%         net_array{i} = net;
+%         fitness_array(i) = accuracy;
+        
+        nb_extracted_feat = sum(pop(i, :) == 1);
+        fitness_array(i) = 0.5*accuracy + 0.5*(nb_features - nb_extracted_feat)/...
+            nb_features;
     end
 end
 
@@ -297,7 +306,7 @@ end
 %   - best trained ANN per generation (if the MLP is the chosen clasifier)
 function [pop, fitness_evolution, best_fitness, best_features, fitness_array] = ...
     sortRecord(pop, fitness_array, fitness_evolution, best_fitness, ...
-    best_features)
+    best_features, pop_size)
 
     [fitness_array, sorted_idx] = sort(fitness_array, 'descend');
     pop = pop(sorted_idx, :);
@@ -321,6 +330,9 @@ function [pop, fitness_evolution, best_fitness, best_features, fitness_array] = 
 %     fitness_evolution = [fitness_evolution best_fitness];
 %     fitness_array = pop(:, size(pop, 2));
 %     pop = pop(:, 1 : size(pop, 2)-1);
+
+    fitness_array = fitness_array(1:pop_size);
+    pop = pop(1:pop_size, :);
 end
         
 
@@ -368,7 +380,8 @@ function pop = reproduction(pop, pop_size, crossover_rate, mutation_rate, ...
     end
     
     %Update the population
-    pop = new_pop;    
+%     pop = new_pop;    
+    pop = [pop; new_pop];
 end
 
 
@@ -386,3 +399,23 @@ function [chromosome1, chromosome2] = rouletteWheelSelection(pop, fitnesses, wor
     chromosome2 = pop(id2, :);
 end
    
+% Best channels subset selection
+% Params: 
+%   - mat: initial matrix NxM where N is the numver of samples and M is the
+%   number of channels
+function chanSelection(mat)
+    mat = mat - repmat(mean(mat, 2), 1, size(mat, 2));
+    [U,S,V] = svd(mat);
+    
+    coverage = cumsum(diag(S));
+    coverage = coverage ./ max(coverage);
+    [~, nEig] = max(coverage > 0.95);
+    
+    norms = zeros(n,1);
+    for i = 1:n
+        norms(i) = norm(V(i,1:nEig))^2;
+    end
+    
+    [~, idx] = sort(norms);
+    idx(1:3)'
+end

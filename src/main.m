@@ -7,6 +7,8 @@ nb_trials_training = 28; %11; % Ratio train/test for getting an accuracy score
 highpass_filter = 1; %Hz
 notch_filter = [58 62]; %Hz
 % ############################
+manipFuns = dataManipFunctions; 
+featureSelec = featureSelection;
 
 % Letting the user decide of some settings in a console menu
 [hand, k, path_data_file, name_data_file, level, wavelet, classifier] = menu();
@@ -29,12 +31,14 @@ load('data_events.mat');
 % #### 2: Min-Max normalisation
 width = size(final_mat_X, 2);
 height = size(final_mat_X, 1);
-manipFuns = dataManipFunctions; 
     
 minmax_X = manipFuns.MinMaxNorm(final_mat_X, height, width);
 
+% Best channels subset selection
+% featureSelec.chanSelection(minmax_X);
+
 % #### 3: Features extraction
-mat_features = featuresExtraction(minmax_X, level, ...
+[mat_features, ratio_features] = featuresExtraction(minmax_X, level, ...
     alleeg(nb_dataset).trials, wavelet, alleeg(nb_dataset));
 
 % Randomly shuffle mat_features
@@ -43,13 +47,13 @@ mat_features2 = mat_features(ordering, :);
 ex_events2 = ex_events(ordering);
 
 % #### 4: Features selection
-[bestMat, best_features] = featureSelection( mat_features2, size(mat_features2, 2), k,...
-     ex_events2, classifier);
+[bestMat, best_features] = featureSelec.featSelection( mat_features2,...
+    size(mat_features2, 2), k, ex_events2, classifier);
 % geneticAlgorithm(mat_features2, ex_events2, classifier, k);
-% best_feature = geneticAlgorithm(mat_features2, ex_events2, k, classifier);
+% best_features = geneticAlgorithm(mat_features2, ex_events2, classifier, k);
 
 % #### 4 bis: Analysis of the best features selected
-manipFuns.analysisSelectedFeatures(best_features, width);
+manipFuns.analysisSelectedFeatures(best_features, width, ratio_features);
 
 % #### 5: Apply classifier
 disp('######### Final accuracy with k-folds cross validation ##############');

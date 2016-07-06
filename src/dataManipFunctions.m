@@ -129,27 +129,43 @@ end
 % Params: 
 %   - features: best features selected with a genetic algorithm
 %   - nb_channels: number of channels used for the experiments (EEG data acquisition)
-function analysisSelectedFeatures(features, nb_channels)
+%   - ratio_features: number of features extracted in each feature category
+%   (DWT, AR, PSD, Time domain features)
+function analysisSelectedFeatures(features, nb_channels, ratio_features)
     % Number of different types of features extracted
     nb_cat_features = 2; %wavelet and AR features
-    nb_features_per_channel = length(features)/nb_channels;
-    
+    nb_features_per_channel = length(features)/nb_channels; %75
+  
     %Initialisation of the matrix used for plotting the histogram
     mat_features = zeros(nb_channels, nb_cat_features);
     
     % For each channel
     for i = (1: nb_channels)
         %Number of wavelet features selected
-        mat_features(i, 1) = sum(features((i-1)*nb_features_per_channel+1:i*nb_features_per_channel-7) == 1);
+        mat_features(i, 1) = sum(features((i-1)*nb_features_per_channel+1:(i-1)*nb_features_per_channel+ratio_features(1)) == 1);
         %Number of AR features selected
-        mat_features(i, 2) = sum(features(i*nb_features_per_channel-6:i*nb_features_per_channel) == 1);
+        mat_features(i, 2) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)) == 1);
+        %Number of PSD features selected
+        mat_features(i, 3) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)) == 1);
+        %Number of time domain (TD) features selected
+        mat_features(i, 4) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)+ratio_features(4)) == 1);
     end
     
     mat_features
+    mat_features_bis(:, 1) = mat_features(:, 1)*100/ratio_features(1);
+    mat_features_bis(:, 2) = mat_features(:, 2)*100/ratio_features(2);
+    mat_features_bis(:, 3) = mat_features(:, 3)*100/ratio_features(3);
+    mat_features_bis(:, 4) = mat_features(:, 4)*100/ratio_features(4);
+    mat_features_bis
     
     figure('Name', 'Features distribution')
-    bar(mat_features,'stacked')
+    bar_plot = bar(mat_features_bis, 'stacked');
     title('Features distribution')
-%     xlabel('Features')
-%     ylabel('Apparition')
+    xlabel('Channels')
+    ylabel('Cummulative percentage')
+    grid on
+    lgd = legend(bar_plot, {'Discrete Wavelet Transform (DWT) features', ...
+        'Auto-regressive (AR) model features', ...
+        'Power Spectrum Analysis (PSD) features', 'Time Domain (TD) features'},...
+        'Location','Best','FontSize',8);
 end
