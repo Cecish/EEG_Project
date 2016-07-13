@@ -12,10 +12,12 @@ end
 % Min max normalisation of a 2D matrix
 % Params: 
 %   - dataset: 2D matrix
-%   - height: of the matrix
-%   - width: of the matrix
+%   - height: of the matrix (number of rows)
+%   - width: of the matrix (number of columns)
 % Return: the coresponding minmax normalised matrix
 function res_matrix = MinMaxNorm(dataset, height, width)
+
+    res_matrix = zeros(height, width); %Initialisation
 
     %Finding the min and the max valus of each columns
     minmax_arrays = findMinMax(dataset, height, width);
@@ -70,7 +72,7 @@ end
 % Ratio: nb_trials/(total_trials _ nb_trials) for train/test
 % Params: 
 %   - X: data matrix
-%   - Y: corresponding events array
+%   - Y: corresponding array of events
 %   - nb_trials: number of trials in the train subset
 %   - tot_trials: total number of trials
 % Return: 
@@ -78,14 +80,19 @@ end
 %   - testing_dataset
 %   - training_Y: extracted from the events array
 %   - testing_Y: extracted from the events array
-function [training_dataset, testing_dataset, training_Y, testing_Y] = splitXY(X, Y, nb_trials, tot_trials)
+function [training_dataset, testing_dataset, training_Y, testing_Y] = ...
+    splitXY(X, Y, nb_trials, tot_trials)
 
     nb_rows_per_trial = size(X, 1) / tot_trials;
     
-    training_dataset(1:nb_trials * nb_rows_per_trial, :) = X(1:nb_trials * nb_rows_per_trial, :);
-    testing_dataset(1:(size(X, 1)-(nb_trials * nb_rows_per_trial)), :) = X((nb_trials * nb_rows_per_trial)+1:size(X, 1), :);
-    training_Y(1:nb_trials * nb_rows_per_trial) = Y(1:nb_trials * nb_rows_per_trial);
-    testing_Y(1:(size(X, 1)-(nb_trials * nb_rows_per_trial))) = Y((nb_trials * nb_rows_per_trial)+1:size(X, 1));
+    training_dataset(1:nb_trials * nb_rows_per_trial, :) = X(1:nb_trials *...
+        nb_rows_per_trial, :);
+    testing_dataset(1:(size(X, 1)-(nb_trials * nb_rows_per_trial)), :) = ...
+        X((nb_trials * nb_rows_per_trial)+1:size(X, 1), :);
+    training_Y(1:nb_trials * nb_rows_per_trial) = Y(1:nb_trials * ...
+        nb_rows_per_trial);
+    testing_Y(1:(size(X, 1)-(nb_trials * nb_rows_per_trial))) = Y((nb_trials...
+        * nb_rows_per_trial)+1:size(X, 1));
 end
 
 
@@ -109,32 +116,16 @@ function accuracy = calculateAccuracy(predictions, observed, length)
 end
 
 
-function [bestMat, best_feature, ann_net] = featureSelection(mat_features, ...
-    ex_events, k, classifier, selector)
-
-    switch selector
-        
-        case 1 % Genetic algorithm (GA)
-            [bestMat, best_feature, ann_net] = geneticAlgorithm(mat_features, ex_events, k, classifier);
-            
-        case 2 % Particle swarm optimisation (PSO)
-
-        otherwise
-            error('Wrong selection method identifier: %d', selector);
-    end
-end
-
-
 % Analysis of the best features selected per channel by plotting a stack histogram
 % Params: 
 %   - features: best features selected with a genetic algorithm
-%   - nb_channels: number of channels used for the experiments (EEG data acquisition)
+%   - nb_channels: number of channels considered for the analysis
 %   - ratio_features: number of features extracted in each feature category
 %   (DWT, AR, PSD, Time domain features)
 function analysisSelectedFeatures(features, nb_channels, ratio_features)
     % Number of different types of features extracted
     nb_cat_features = 2; %wavelet and AR features
-    nb_features_per_channel = length(features)/nb_channels; %75
+    nb_features_per_channel = length(features)/nb_channels; % 100%
   
     %Initialisation of the matrix used for plotting the histogram
     mat_features = zeros(nb_channels, nb_cat_features);
@@ -142,29 +133,39 @@ function analysisSelectedFeatures(features, nb_channels, ratio_features)
     % For each channel
     for i = (1: nb_channels)
         %Number of wavelet features selected
-        mat_features(i, 1) = sum(features((i-1)*nb_features_per_channel+1:(i-1)*nb_features_per_channel+ratio_features(1)) == 1);
+        mat_features(i, 1) = sum(features((i-1)*nb_features_per_channel+1:(i-1)...
+            *nb_features_per_channel+ratio_features(1)) == 1);
         %Number of AR features selected
-        mat_features(i, 2) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)) == 1);
+        mat_features(i, 2) = sum(features((i-1)*nb_features_per_channel+...
+            ratio_features(1)+1:(i-1)*nb_features_per_channel+ratio_features(1)...
+            +ratio_features(2)) == 1);
         %Number of PSD features selected
-        mat_features(i, 3) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)) == 1);
+        mat_features(i, 3) = sum(features((i-1)*nb_features_per_channel+...
+            ratio_features(1)+ratio_features(2)+1:(i-1)*nb_features_per_channel...
+            +ratio_features(1)+ratio_features(2)+ratio_features(3)) == 1);
         %Number of time domain (TD) features selected
-        mat_features(i, 4) = sum(features((i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)+1:(i-1)*nb_features_per_channel+ratio_features(1)+ratio_features(2)+ratio_features(3)+ratio_features(4)) == 1);
+        mat_features(i, 4) = sum(features((i-1)*nb_features_per_channel+...
+            ratio_features(1)+ratio_features(2)+ratio_features(3)+1:(i-1)*...
+            nb_features_per_channel+ratio_features(1)+ratio_features(2)+...
+            ratio_features(3)+ratio_features(4)) == 1);
     end
     
-    mat_features
+    % The 4 types of selected features displayed in the stacked bar chart
+    % are represented by a percentage. Consequently the maximum height that
+    % can possibly be reached in the stacked bar chart is 400 = 4*1000%
     mat_features_bis(:, 1) = mat_features(:, 1)*100/ratio_features(1);
     mat_features_bis(:, 2) = mat_features(:, 2)*100/ratio_features(2);
     mat_features_bis(:, 3) = mat_features(:, 3)*100/ratio_features(3);
     mat_features_bis(:, 4) = mat_features(:, 4)*100/ratio_features(4);
-    mat_features_bis
     
+    % Plotting the stacked bar chart
     figure('Name', 'Features distribution')
     bar_plot = bar(mat_features_bis, 'stacked');
     title('Features distribution')
     xlabel('Channels')
     ylabel('Cummulative percentage')
     grid on
-    lgd = legend(bar_plot, {'Discrete Wavelet Transform (DWT) features', ...
+    legend(bar_plot, {'Discrete Wavelet Transform (DWT) features', ...
         'Auto-regressive (AR) model features', ...
         'Power Spectrum Analysis (PSD) features', 'Time Domain (TD) features'},...
         'Location','Best','FontSize',8);

@@ -4,13 +4,15 @@
 %   - level: decomposition level of the discrete wavelet transform
 %   - nb_events: number of events/trials
 %   - wavelet
-%   - eeg variable from EEGLAB
+%   - s_rate: sampling rate
+%   - signal_length: number of columns for the EEG recorded data (2D matrix)
+%   - desired_nb_channels: desired number of optimal channels
 % Return: 
 %   - mat_features: [40 x nb_channels*level*nb_features] matrix, for each event
 %   - ratio_cat_feat: number of features extrcated in each category of
 %   features (DWT, AR, PSD, time domain features)
-function [mat_features, ratio_cat_feat] = featuresExtraction(mat_X, level, nb_events, ...
-    wavelet, eeg)
+function [mat_features, ratio_cat_feat] = featuresExtraction(mat_X, level, ...
+    nb_events, wavelet, s_rate, signal_length, desired_nb_channels)
 
     ar_order = 6; %Recommended value, as seen in the litterature
     length_block = size(mat_X,1)/40; %number of records for one trial (40 trials in total)
@@ -22,7 +24,7 @@ function [mat_features, ratio_cat_feat] = featuresExtraction(mat_X, level, nb_ev
         row = [];
 
         %For each channel
-        for k = (1: eeg.nbchan)
+        for k = (1: desired_nb_channels)
             % 1. #### Discrete wavelet transform ####
             [c,l] = wavedec(mat_X(temp:temp+length_block-1,k),level, wavelet);
 %             [c,l] = wavedec(mat_X(temp:temp+81,k),level, wavelet);
@@ -34,17 +36,8 @@ function [mat_features, ratio_cat_feat] = featuresExtraction(mat_X, level, nb_ev
             ar_res = ar(mat_X(temp:temp+length_block-1,k), ar_order);
             
             % 3. #### Power Spectrum Analysis ####
-            Fs = eeg.srate;           % Sampling frequency
-            L  = eeg.pnts;            % Length of signal
-            NFFT = 2^nextpow2(L);     % Next power of 2 from length of x
-            NOVERLAP = 0;
-            WINDOW = 512;
-            x  = mat_X(temp:temp+length_block-1, k); %Channel k
-            %Matlab pwelch function
-            [spectra,freqs] = pwelch(x,WINDOW,NOVERLAP,NFFT,Fs);
-%             [spectra,freqs] = spectopo(mat_X(temp:temp+length_block-1,k),...
-%                 0, eeg.srate, 'nfft', 1024); %
-   
+            [spectra, freqs] = extractPSDFeatures(s_rate, signal_length, ...
+                mat_X(temp:temp+length_block-1, k)); % Focusing on channel k
             psd_features = extractPowerSpectrumFeatures(spectra, freqs);
             
             % 4. #### Time domain features (with Hjorth parameters) ####
@@ -184,11 +177,13 @@ end
 %   - cD: Detail coeffients structure
 %   - cA: Approximation coefficients
 function [cD, cA] = extractCoeff(level, c, l, wavelet)
+%     cD = cell(1, 5); %Initialisation
+
     %Detail coefficients
     for i = (1:level)
        cD{i} = detcoef(c,l, i);
     end
-    
+  
     %Approximation coefficients
     cA = appcoef(c,l, wavelet, level);
 end
@@ -203,6 +198,22 @@ end
 %   - td_features: Time domain features
 % Return: Row features associated to a specific trial
 function row = buildRowFeatures(level, cD, ar_coeffs, psd_features, td_features)
+    %Initialisation
+    shannon_entropy = zeros(1, level-1);
+    log_energy = shannon_entropy;
+    mean_val1 = shannon_entropy;
+    std_val1 = shannon_entropy;
+    rms = shannon_entropy;
+    mav = shannon_entropy;
+    ieeg = shannon_entropy;
+    ssi = shannon_entropy;
+    var = shannon_entropy;
+    aac = shannon_entropy;
+    mini = shannon_entropy;
+    maxi = shannon_entropy;
+    meanVal = shannon_entropy;
+    stdVal = shannon_entropy;
+
     % Features associated to the detail coefficents
     for j = (2: level)
         shannon_entropy(j-1) = wentropy(cD{j}', 'shannon');
@@ -263,4 +274,25 @@ function psd_features = extractPowerSpectrumFeatures(spectra, freqs)
     %features for a specific channel
     psd_features = [band1_power band1_std band2_power band2_std band3_power....
         band3_std band4_power band4_std band5_power band5_std];
+end
+
+
+% Params:
+%   - s_rate: sampling frequency
+%   - signal_length: length of signal
+%   - x: acquisition data from a specific channel
+% Return: 
+%   - spectra: power spectrum of a specific channel
+%   - freqs: frequences
+function [spectra,freqs] = extractPSDFeatures(s_rate, signal_length, x)
+
+    NFFT = 2^nextpow2(signal_length);     % Next power of 2 from length of x
+    NOVERLAP = 0;
+    WINDOW = 512;
+
+    %Matlab pwelch function
+    [spectra,freqs] = pwelch(x,WINDOW,NOVERLAP,NFFT,s_rate);
+%    [spectra,freqs] = spectopo(mat_X(temp:temp+length_block-1,k),...
+%         0, eeg.srate, 'nfft', 1024); %
+            
 end

@@ -3,11 +3,10 @@
 %   - id: identifier of the classifier (1: kNN, 2: SVM, 3: MLP)
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
-%   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider for the kNN
-% Return: accuracy score (+ trained ANN if the chosen classifier is the
-% Multi-Layer Perceptron) + classifier model
+% Return: 
+%   - accuracy: accuracy score
+%   - CVMdl: classifier model
 function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
 
     switch id
@@ -27,9 +26,9 @@ end
 % Params: 
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
-%   - tot_trials: total number of events
-% Return: accuracy score + classifier model
+% Return: 
+%   - accuracy: accuracy score
+%   - CVSVMMdl: classifier model
 function [accuracy, CVSVMMdl] = SVM_func( final_mat_X, ex_events_Y )
 
     %Cross Validation with the SVM classifier
@@ -47,10 +46,10 @@ end
 % Params: 
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-%   - nb_trials: number of rows in data to consider as a "training" sub-dataset
-%   - tot_trials: total number of events
 %   - k: number of nearest neighbours to consider
-% Return: predictions made and accuracy score
+% Return: 
+%   - accuracy: accuracy score
+%   - CVMdl: classifier model
 function [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k )
 
     %Cross Validation with k-NN classifier
@@ -67,9 +66,8 @@ end
 % Params: 
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-% Return: accuracy score + trained ANN model
+% Return: accuracy score
 function accuracy = MLP_func( final_mat_X, ex_events)
-    manipFuns = dataManipFunctions;
     
     k = 10; %k-folds for the cross-validation
     error = 0;
