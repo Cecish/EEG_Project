@@ -1,10 +1,10 @@
 # Analysis of data retrieved by EEG devices and a soft exoskeleton device for stroke rehabilitation
 MSc Project
 
-# Synopsis
+## Synopsis
 
-# Prerequisite
+## Prerequisite
 
-# Installation
+## Installation
 
-# How to run
+## How to run
