@@ -12,12 +12,13 @@ end
 %   - k: number of nearest neighbours to consider with the k-NN classifier
 %   - events: known outcome associated to each trial
 %   - classifier: id of the chosen classifier 
+%   - do_plot: plotting or not accuracy/fitness/penalty evolutions (0: No, 1: Yes)
 % Return: 
 %   - res: sub matrix (with a reduced number of features) that led to the
 %     best accuracy score
 %   - best_features: subset of features that led to the best accuracy score
 function [res, best_features] = featSelection( mat, nb_features, k,...
-    events, classifier)
+    events, classifier, do_plot)
     
     % GA parameters
     pop_size = 20;
@@ -29,6 +30,7 @@ function [res, best_features] = featSelection( mat, nb_features, k,...
     % Parameters initialisation
     best_features = [];
     it = 0;
+    best_model = 0;
     best_fitness = -Inf;
     fitness_evolution = [];
     accuracy_evolution = fitness_evolution;
@@ -36,26 +38,26 @@ function [res, best_features] = featSelection( mat, nb_features, k,...
     
     % Population initialisation
     [pop, fitness_array, accuracy_array, penalty_array, fitness_evolution, ...
-        best_fitness, best_features, accuracy_evolution, penalty_evolution] = ...
+        best_fitness, best_features, accuracy_evolution, penalty_evolution, net_array, best_model] = ...
         popInit(pop_size, nb_features, fitness_evolution, best_fitness, ...
         best_features, accuracy_evolution, penalty_evolution, mat, events,...
-        k, classifier);
+        k, classifier, best_model);
         
     %Loop until the termination condition is reached
-    while ((it < max_generations)) %&& (best_fitness < 100.00))
+    while ((it < max_generations) && (best_fitness < 100.00))
         disp(['#### EPOCH n° ', num2str(it)]);
 
         % ####1: Create a new population
-        [pop, fitness_array, accuracy_array, penalty_array] = reproduction(...
+        [pop, fitness_array, accuracy_array, penalty_array, net_array] = reproduction(...
             pop, pop_size, crossover_rate, mutation_rate, fitness_array, ...
             nb_features, nb_elites, accuracy_array, penalty_array, mat, ...
-            classifier, events, k);
+            classifier, events, k, net_array);
         
         %####2: Sort by population by fitness value (descending order)
-        [pop, fitness_evolution, best_fitness, best_features, fitness_array,...
+        [pop, fitness_evolution, best_fitness, best_features, best_model, fitness_array,...
             accuracy_evolution, penalty_evolution] = sortRecord(pop, ...
             fitness_array, fitness_evolution, best_fitness, best_features,...
-            accuracy_evolution, penalty_evolution, nb_features);
+            accuracy_evolution, penalty_evolution, nb_features, net_array, best_model);
     
         %####3: Truncate the population (only pop_size individuals per population)
         pop = pop(1:pop_size, :);
@@ -78,22 +80,25 @@ function [res, best_features] = featSelection( mat, nb_features, k,...
     %Build matrix with the best features
     res = buildSubMat(mat, best_features, nb_features);
     
-    % Plotting the evolution of the best fitness value, the "best "accuracy
-    % score (here, best in terms of the corresponding fitness value) and the
-    % "best" penalty term (after penalty and being part of the best fitness
-    % value) over the generations
-    abscissa = 1:it;
-    figure
-    evolution_graph = plot(abscissa, fitness_evolution(2:end), abscissa, ...
-        accuracy_evolution(2:end), abscissa, penalty_evolution(2:end));
-    grid on;
-    title('Best fitness/accuracy/penalty evolution over the generations')
-    xlabel('Generations')
-    ylabel('Fitness/Accuracy/Rest after penalty')
-    legend(evolution_graph, {'Fitness evolution', ...
-    'Evolution of the accuracy associated with the best fitness value',...
-    'Evolution of the best remainder after penalties, associated with the best fitness value'}, ...
-    'Location','Best','FontSize',8);
+    if (do_plot)
+        % Plotting the evolution of the best fitness value, the "best "accuracy
+        % score (here, best in terms of the corresponding fitness value) and the
+        % "best" penalty term (after penalty and being part of the best fitness
+        % value) over the generations 
+        abscissa = 1:it;
+        
+        figure
+        evolution_graph = plot(abscissa, fitness_evolution(2:end), abscissa, ...
+            accuracy_evolution(2:end), abscissa, penalty_evolution(2:end));
+        grid on;
+        title('Best fitness/accuracy/penalty evolution over the generations')
+        xlabel('Generations')
+        ylabel('Fitness/Accuracy/Rest after penalty')
+        legend(evolution_graph, {'Fitness evolution', ...
+        'Evolution of the accuracy associated with the best fitness value',...
+        'Evolution of the best remainder after penalties, associated with the best fitness value'}, ...
+        'Location','Best','FontSize',8);
+    end
     
 end
 
@@ -309,7 +314,7 @@ end
 %   - penalty_array: array of penalties. Its values are the number of
 %   fetures not selected for a specific solution. It is thus
 %   intended/encouraged that the values will increase over the generations
-function [fitness_array, accuracy_array, penalty_array] = evalPop(mat, pop,...
+function [fitness_array, accuracy_array, penalty_array, net_array] = evalPop(mat, pop,...
     pop_size, nb_features, events, k, classifier)
 
     %Arrays initialisation
@@ -322,7 +327,7 @@ function [fitness_array, accuracy_array, penalty_array] = evalPop(mat, pop,...
         new_mat = buildSubMat(mat, pop(i, :), nb_features);
             
         % Calculation of the accuracy
-        [accuracy, ~] = classifiers(classifier, new_mat, events, k);
+        [accuracy, net_array{i}] = classifiers(classifier, new_mat, events, k);
         accuracy_array(i) = accuracy;
         % Calculation of the fitness_value
         % AND keep note of the penalty value of each solution of the population
@@ -356,16 +361,18 @@ end
 %   generations (=accuracy of the best solution) (updated)
 %   - penalty_evolution: penalty_evolution: evolution of the "best" remainders after penalty 
 %   over the generations (updated)
-function [pop, fitness_evolution, best_fitness, best_features, ...
+function [pop, fitness_evolution, best_fitness, best_features, best_model, ...
     fitness_array, accuracy_evolution, penalty_evolution] = sortRecord(...
     pop, fitness_array, fitness_evolution, best_fitness,...
-    best_features, accuracy_evolution, penalty_evolution, nb_features)
+    best_features, accuracy_evolution, penalty_evolution, nb_features, net_array, best_model)
 
     [fitness_array, sorted_idx] = sort(fitness_array, 'descend');
     pop = pop(sorted_idx, :);
  
     if (fitness_array(1) > best_fitness)
         best_features =  pop(1, :);
+% save('truc', 'net_array');
+        best_model = net_array(sorted_idx(1));
     end
     best_fitness = max(fitness_array(1), best_fitness);
     fitness_evolution = [fitness_evolution best_fitness];
@@ -402,10 +409,10 @@ end
 %   to the old population for now)
 %   - accuracy_array: updated array of accuracies for one generation
 %   - penalty_array: updated array of "penalties" for one generation
-function [pop, fitness_array_bis, accuracy_array, penalty_array] = ...
+function [pop, fitness_array_bis, accuracy_array, penalty_array, net_array] = ...
     reproduction(pop, pop_size, crossover_rate, mutation_rate, fitness_array,...
     nb_features, nb_elites, accuracy_array, penalty_array, mat, classifier,...
-    events, k)
+    events, k, net_array)
 
     new_pop = zeros(pop_size, nb_features); %Initialisation
     
@@ -443,16 +450,17 @@ function [pop, fitness_array_bis, accuracy_array, penalty_array] = ...
         accuracy_array(pop_size+1:pop_size+nb_elites) = accuracy_array(1:nb_elites);
         penalty_array(pop_size+1:pop_size+nb_elites) = penalty_array(1:nb_elites);
         fitness_array_bis(pop_size+1:pop_size+nb_elites) = fitness_array(1:nb_elites);
+        net_array(pop_size+1:pop_size+nb_elites) = net_array(1:nb_elites);
         
         % Processing of child n°1
-        [fitness_array_bis, accuracy_array, penalty_array] = evalChild(...
+        [fitness_array_bis, accuracy_array, penalty_array, net_array] = evalChild(...
             accuracy_array, penalty_array, fitness_array_bis, mat, nb_features,...
-            child1, classifier, events, k, pop_size, i);
+            child1, classifier, events, k, pop_size, i, net_array);
         
         % Processing of child n°2
-        [fitness_array_bis, accuracy_array, penalty_array] = evalChild(...
+        [fitness_array_bis, accuracy_array, penalty_array, net_array] = evalChild(...
             accuracy_array, penalty_array, fitness_array_bis, mat, nb_features,...
-            child2, classifier, events, k, pop_size, i+1);
+            child2, classifier, events, k, pop_size, i+1, net_array);
         
         i = i + 2;
     end
@@ -485,8 +493,8 @@ end
 %   - reduced_mat: The reduced matrix Nxdesired_nb_channels
 %   - best_channels: the first desired_nb_channels optimal channels
 function [reduced_mat, best_channels, worst] = chanReduction(mat, ex_events_Y, desired_nb_channels)
-%     selectedIndices = feast('mrmr', 14, mat, ex_events_Y);
-    selectedIndices = mrmr_mid_d(mat, ex_events_Y, 14)
+
+    selectedIndices = mrmr_mid_d(mat, ex_events_Y, size(mat, 2))
    
     best_channels = selectedIndices(1:desired_nb_channels);
     worst_channels = selectedIndices(desired_nb_channels+1:end);
@@ -527,22 +535,22 @@ end
 %   - penalty_evolution: evolution of the "best" remainders after penalty 
 %   over the generations (updated)
 function [pop, fitness_array, accuracy_array, penalty_array, fitness_evolution, ...
-        best_fitness, best_features, accuracy_evolution, penalty_evolution] = ...
+        best_fitness, best_features, accuracy_evolution, penalty_evolution, net_array, best_model] = ...
         popInit(pop_size, nb_features, fitness_evolution, best_fitness, ...
         best_features, accuracy_evolution, penalty_evolution, mat, events,...
-        k, classifier)
+        k, classifier, best_model)
     
     % Population creation
     pop = createPop(pop_size, nb_features);
     
     % Initial population evaluation
-    [fitness_array, accuracy_array, penalty_array] = evalPop(mat, pop,...
+    [fitness_array, accuracy_array, penalty_array, net_array] = evalPop(mat, pop,...
         size(pop, 1), nb_features, events, k, classifier);
     
     % Sort the population by fitness and record the best fitness of the generation
-    [pop, fitness_evolution, best_fitness, best_features, fitness_array,...
+    [pop, fitness_evolution, best_fitness, best_features, best_model, fitness_array,...
         accuracy_evolution, penalty_evolution] = sortRecord(pop, fitness_array, fitness_evolution,...
-        best_fitness, best_features, accuracy_evolution, penalty_evolution, nb_features);
+        best_fitness, best_features, accuracy_evolution, penalty_evolution, nb_features, net_array, best_model);
     
 end
 
@@ -564,14 +572,14 @@ end
 %   - fitness_array_bis: array of fitnesses for one generation (updated)
 %   - accuracy_array: array of accuracies for one generation (updated)
 %   - penalty_array: array of "penalties" foor one generation (updated)
-function [fitness_array_bis, accuracy_array, penalty_array] = evalChild(...
+function [fitness_array_bis, accuracy_array, penalty_array, net_array] = evalChild(...
             accuracy_array, penalty_array, fitness_array_bis, mat, nb_features,...
-            child, classifier, events, k, pop_size, i)
+            child, classifier, events, k, pop_size, i, net_array)
         
     %Build new mat according to features selected
     new_mat = buildSubMat(mat, child, nb_features);
     % Calculation of the accuracy
-    [accuracy, ~] = classifiers(classifier, new_mat, events, k);
+    [accuracy, net_array{pop_size+i}] = classifiers(classifier, new_mat, events, k);
     accuracy_array(pop_size+i) = accuracy;
     % Calculation of the penalty value
     nb_extracted_feat = sum(child == 1); %Number of features selected

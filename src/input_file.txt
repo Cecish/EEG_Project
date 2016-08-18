@@ -1,0 +1,8 @@
+1
+H:\MasterProject\RawEEGData\EPOC\No_Glove\AM\Online\
+motor-imagery-csp-4-online-[2016.07.25-11.17.06].vhdr
+1
+1
+5
+sym2
+1

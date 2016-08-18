@@ -14,8 +14,8 @@ function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
             [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k );
         case 2 %SVM
             [accuracy, CVMdl] = SVM_func( final_mat_X, ex_events_Y );
-        case 3 %MLP
-            accuracy = MLP_func( final_mat_X, ex_events_Y );
+%         case 3 %MLP
+%             [accuracy, CVMdl] = MLP_func( final_mat_X, ex_events_Y );
         otherwise
             error('Wrong classifier identifier: %d', id);
     end
@@ -66,8 +66,8 @@ end
 % Params: 
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
-% Return: accuracy score
-function accuracy = MLP_func( final_mat_X, ex_events)
+% Return: accuracy score + trained ANN
+function [accuracy, net] = MLP_func( final_mat_X, ex_events)
     
     k = 10; %k-folds for the cross-validation
     error = 0;
@@ -83,6 +83,7 @@ function accuracy = MLP_func( final_mat_X, ex_events)
         net1.divideParam.trainInd = training_id;
         net1.divideParam.valInd = [];
         net1.divideParam.testInd = testing_id;
+        net1.trainParam.epochs = 200;
 
         % Train the Network
         [net, tr] = train(net1, final_mat_X', ex_events);
@@ -91,7 +92,7 @@ function accuracy = MLP_func( final_mat_X, ex_events)
 %       min(tr.tperf)
         error = error + min(tr.tperf);
     end
-    accuracy = (1 - error)*100;
+    accuracy = (1 - error/40)*100;
     
     % Test the Network
 %       y = sim(net, final_mat_X');

@@ -198,6 +198,7 @@ end
 %   - td_features: Time domain features
 % Return: Row features associated to a specific trial
 function row = buildRowFeatures(level, cD, ar_coeffs, psd_features, td_features)
+
     %Initialisation
     shannon_entropy = zeros(1, level-1);
     log_energy = shannon_entropy;
@@ -232,9 +233,9 @@ function row = buildRowFeatures(level, cD, ar_coeffs, psd_features, td_features)
         meanVal(j-1) = mean(cD{j});
         stdVal(j-1) = std(cD{j});
     end
-
+    
     row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal shannon_entropy...
-        shannon_entropy mean_val1 std_val1 ar_coeffs psd_features td_features];
+        log_energy mean_val1 std_val1 ar_coeffs psd_features td_features];
 %     row = [rms mav ieeg ssi var aac mini maxi meanVal stdVal ar_coeffs ...
 %         psd_features td_features];
 end

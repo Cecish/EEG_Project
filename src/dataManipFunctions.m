@@ -158,6 +158,11 @@ function analysisSelectedFeatures(features, nb_channels, ratio_features)
     mat_features_bis(:, 3) = mat_features(:, 3)*100/ratio_features(3);
     mat_features_bis(:, 4) = mat_features(:, 4)*100/ratio_features(4);
     
+    display(['DWT features selected ratio = ', num2str(ratio_features(1))]);
+    display(['AR features selected ratio = ', num2str(ratio_features(2))]);
+    display(['PSD features selected ratio = ', num2str(ratio_features(3))]);
+    display(['TD features selected ratio = ', num2str(ratio_features(4))]);
+    
     % Plotting the stacked bar chart
     figure('Name', 'Features distribution')
     bar_plot = bar(mat_features_bis, 'stacked');
@@ -170,3 +175,4 @@ function analysisSelectedFeatures(features, nb_channels, ratio_features)
         'Power Spectrum Analysis (PSD) features', 'Time Domain (TD) features'},...
         'Location','Best','FontSize',8);
 end
+
