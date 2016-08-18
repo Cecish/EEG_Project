@@ -15,11 +15,11 @@ The EEG analysis proposed in this project is run with the command 'main'.
 WARNING: You have approriately fill the 'input_file.txt' file for a successful run, as it for instance gathers information about the location of the acquired raw EEG signals, the EEG device used (EPOC or actiCAP)
 
 ## How to fill the input_file.txt file
-First line: Which hand should is (assumed to be) paralysed? (1: Right hand, 0: left hand)
-Second line: Data file path name
-Third line: Data file name
-Fourth line: Classifier used for the analysis (1: kNN and 2:SVM)
-Fifth line: Number of nearest neighbours (in case the kNN was chosen)
-Sixth line: Number of level for the discrete wavelet transform
-Seventh: Mother wavelet used for the discrete wavelet transform
-Eighth line: EEG system used (1: EPOC, 2: actiCAP)
+- First line: Which hand should is (assumed to be) paralysed? (1: Right hand, 0: left hand)
+- Second line: Data file path name
+- Third line: Data file name
+- Fourth line: Classifier used for the analysis (1: kNN and 2:SVM)
+- Fifth line: Number of nearest neighbours (in case the kNN was chosen)
+- Sixth line: Number of level for the discrete wavelet transform
+- Seventh: Mother wavelet used for the discrete wavelet transform
+- Eighth line: EEG system used (1: EPOC, 2: actiCAP)
