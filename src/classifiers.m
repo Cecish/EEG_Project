@@ -4,7 +4,7 @@
 %   - final_mat_X: data used for the classification
 %   - ex_events_Y: target field associated to each row of data
 %   - k: number of nearest neighbours to consider for the kNN
-% Return: 
+% Return:  
 %   - accuracy: accuracy score
 %   - CVMdl: classifier model
 function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
