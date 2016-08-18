@@ -8,7 +8,7 @@
 %   - accuracy: accuracy score
 %   - CVMdl: classifier model
 function [accuracy, CVMdl] = classifiers( id, final_mat_X, ex_events_Y, k)
-
+ 
     switch id
         case 1 %kNN
             [accuracy, CVMdl] = kNN_func( final_mat_X, ex_events_Y, k );
